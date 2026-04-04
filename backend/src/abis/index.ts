@@ -83,8 +83,8 @@ export const CoreMembershipSubscriptionABI = [
     "function hasClaimed(address) external view returns (bool)",
 ];
 
-// ============ P2PEscrow ABI ============
-export const P2PEscrowABI = [
+// ============ AtomicP2p ABI ============
+export const AtomicP2pABI = [
     // Events
     "event BuyOrderCreated(uint256 indexed orderId, address indexed creator, uint256 usdtAmount, uint256 timestamp)",
     "event SellOrderCreated(uint256 indexed orderId, address indexed creator, uint256 kairoAmount, uint256 timestamp)",
@@ -124,8 +124,8 @@ export const KAIROTokenABI = [
     "event Transfer(address indexed from, address indexed to, uint256 value)",
 ];
 
-// ============ AuxFund ABI (minimal for price reads) ============
-export const AuxFundABI = [
+// ============ LiquidityPool ABI (minimal for price reads) ============
+export const LiquidityPoolABI = [
     "function getLivePrice() external view returns (uint256)",
     "function getCurrentPrice() external view returns (uint256)",
     "function getBalances() external view returns (uint256 usdtBalance, uint256 kairoBalance)",

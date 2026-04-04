@@ -14,9 +14,9 @@ interface IKAIROToken {
 }
 
 /**
- * @title IAuxFund - Interface for AuxFund price oracle
+ * @title ILiquidityPool - Interface for LiquidityPool price oracle
  */
-interface IAuxFund {
+interface ILiquidityPool {
     function getLivePrice() external view returns (uint256);
 }
 
@@ -40,7 +40,7 @@ contract AffiliateDistributor is ReentrancyGuard, Pausable, AccessControl {
 
     // ============ External References ============
     IKAIROToken public kairoToken;
-    IAuxFund public auxFund;
+    ILiquidityPool public liquidityPool;
     address public stakingManager;
     address public systemWallet;
 
@@ -105,17 +105,17 @@ contract AffiliateDistributor is ReentrancyGuard, Pausable, AccessControl {
     // ============ Constructor ============
     constructor(
         address _kairoToken,
-        address _auxFund,
+        address _liquidityPool,
         address _admin,
         address _systemWallet
     ) {
         require(_kairoToken != address(0), "AffiliateDistributor: Invalid KAIRO token");
-        require(_auxFund != address(0), "AffiliateDistributor: Invalid AuxFund");
+        require(_liquidityPool != address(0), "AffiliateDistributor: Invalid LiquidityPool");
         require(_admin != address(0), "AffiliateDistributor: Invalid admin");
         require(_systemWallet != address(0), "AffiliateDistributor: Invalid system wallet");
 
         kairoToken = IKAIROToken(_kairoToken);
-        auxFund = IAuxFund(_auxFund);
+        liquidityPool = ILiquidityPool(_liquidityPool);
         systemWallet = _systemWallet;
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
@@ -261,7 +261,7 @@ contract AffiliateDistributor is ReentrancyGuard, Pausable, AccessControl {
 
         require(balance >= MIN_HARVEST, "AffiliateDistributor: Below minimum harvest ($10)");
 
-        uint256 livePrice = auxFund.getLivePrice();
+        uint256 livePrice = liquidityPool.getLivePrice();
         require(livePrice > 0, "AffiliateDistributor: Invalid price");
 
         uint256 kairoAmount = (balance * 1e18) / livePrice;

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useKairoPrice } from '@/hooks/useKairoPrice';
+import { useReferral } from '@/hooks/useReferral';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 /* ────────── animation helpers ────────── */
@@ -141,6 +142,9 @@ const tiers = [
 export default function HomePage() {
   const { price, isLoading: priceLoading } = useKairoPrice();
   const countdown = useCountdown(CMS_DEADLINE);
+
+  // Capture ?ref= parameter on landing page
+  useReferral();
 
   return (
     <div className="min-h-screen overflow-x-hidden">

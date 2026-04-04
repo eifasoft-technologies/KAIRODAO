@@ -3,11 +3,11 @@ import { type Address } from 'viem';
 // ============ Contract Addresses ============
 export const CONTRACTS = {
   KAIRO_TOKEN: (process.env.NEXT_PUBLIC_KAIRO_TOKEN || '') as Address,
-  AUXFUND: (process.env.NEXT_PUBLIC_AUXFUND || '') as Address,
+  LIQUIDITY_POOL: (process.env.NEXT_PUBLIC_LIQUIDITY_POOL || '') as Address,
   STAKING_MANAGER: (process.env.NEXT_PUBLIC_STAKING_MANAGER || '') as Address,
   AFFILIATE_DISTRIBUTOR: (process.env.NEXT_PUBLIC_AFFILIATE_DISTRIBUTOR || '') as Address,
   CMS: (process.env.NEXT_PUBLIC_CMS || '') as Address,
-  P2P_ESCROW: (process.env.NEXT_PUBLIC_P2P_ESCROW || '') as Address,
+  ATOMIC_P2P: (process.env.NEXT_PUBLIC_ATOMIC_P2P || '') as Address,
   USDT: (process.env.NEXT_PUBLIC_USDT || '') as Address,
 } as const;
 
@@ -40,8 +40,8 @@ export const KAIROTokenABI = [
   { type: 'event', name: 'Transfer', inputs: [{ name: 'from', type: 'address', indexed: true }, { name: 'to', type: 'address', indexed: true }, { name: 'value', type: 'uint256', indexed: false }] },
 ] as const;
 
-// ============ AuxFund ABI ============
-export const AuxFundABI = [
+// ============ LiquidityPool ABI ============
+export const LiquidityPoolABI = [
   { type: 'function', name: 'getLivePrice', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'getCurrentPrice', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'getBalances', inputs: [], outputs: [{ name: 'usdtBalance', type: 'uint256' }, { name: 'kairoBalance', type: 'uint256' }], stateMutability: 'view' },
@@ -105,6 +105,7 @@ export const AffiliateDistributorABI = [
   { type: 'function', name: 'qualifierWeekly', inputs: [{ type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'qualifierMonthly', inputs: [{ type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'teamVolume', inputs: [{ type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'directCount', inputs: [{ type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
 ] as const;
 
 // ============ CoreMembershipSubscription ABI ============
@@ -130,8 +131,8 @@ export const CoreMembershipSubscriptionABI = [
   { type: 'function', name: 'hasClaimed', inputs: [{ type: 'address' }], outputs: [{ type: 'bool' }], stateMutability: 'view' },
 ] as const;
 
-// ============ P2PEscrow ABI ============
-export const P2PEscrowABI = [
+// ============ AtomicP2p ABI ============
+export const AtomicP2pABI = [
   { type: 'event', name: 'BuyOrderCreated', inputs: [{ name: 'orderId', type: 'uint256', indexed: true }, { name: 'creator', type: 'address', indexed: true }, { name: 'usdtAmount', type: 'uint256', indexed: false }, { name: 'timestamp', type: 'uint256', indexed: false }] },
   { type: 'event', name: 'SellOrderCreated', inputs: [{ name: 'orderId', type: 'uint256', indexed: true }, { name: 'creator', type: 'address', indexed: true }, { name: 'kairoAmount', type: 'uint256', indexed: false }, { name: 'timestamp', type: 'uint256', indexed: false }] },
   { type: 'event', name: 'OrderCancelled', inputs: [{ name: 'orderId', type: 'uint256', indexed: true }, { name: 'creator', type: 'address', indexed: true }, { name: 'isBuyOrder', type: 'bool', indexed: false }, { name: 'refundedAmount', type: 'uint256', indexed: false }] },

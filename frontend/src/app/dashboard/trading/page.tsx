@@ -68,8 +68,8 @@ export default function TradingPage() {
     address: CONTRACTS.USDT,
     abi: USDTABI,
     functionName: 'allowance',
-    args: address ? [address, CONTRACTS.P2P_ESCROW] : undefined,
-    query: { enabled: !!address && !!CONTRACTS.USDT && !!CONTRACTS.P2P_ESCROW },
+    args: address ? [address, CONTRACTS.ATOMIC_P2P] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.USDT && !!CONTRACTS.ATOMIC_P2P },
   });
 
   // KAIRO allowance for P2P
@@ -77,8 +77,8 @@ export default function TradingPage() {
     address: CONTRACTS.KAIRO_TOKEN,
     abi: KAIROTokenABI,
     functionName: 'allowance',
-    args: address ? [address, CONTRACTS.P2P_ESCROW] : undefined,
-    query: { enabled: !!address && !!CONTRACTS.KAIRO_TOKEN && !!CONTRACTS.P2P_ESCROW },
+    args: address ? [address, CONTRACTS.ATOMIC_P2P] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.KAIRO_TOKEN && !!CONTRACTS.ATOMIC_P2P },
   });
 
   const { writeContract: writeApprove, data: approveTx, isPending: isApproving } = useWriteContract();
@@ -131,14 +131,14 @@ export default function TradingPage() {
         address: CONTRACTS.USDT,
         abi: USDTABI,
         functionName: 'approve',
-        args: [CONTRACTS.P2P_ESCROW, amtBig],
+        args: [CONTRACTS.ATOMIC_P2P, amtBig],
       });
     } else {
       writeApprove({
         address: CONTRACTS.KAIRO_TOKEN,
         abi: KAIROTokenABI,
         functionName: 'approve',
-        args: [CONTRACTS.P2P_ESCROW, amtBig],
+        args: [CONTRACTS.ATOMIC_P2P, amtBig],
       });
     }
   };

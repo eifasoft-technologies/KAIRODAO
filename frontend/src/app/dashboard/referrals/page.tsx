@@ -11,19 +11,21 @@ import {
   ShareIcon,
   LinkIcon,
   ExclamationTriangleIcon,
+  CurrencyDollarIcon,
+  ArrowUpIcon,
 } from '@heroicons/react/24/outline';
 import { CONTRACTS, AffiliateDistributorABI } from '@/lib/contracts';
 import { StatCard } from '@/components/ui/StatCard';
 import { ReferralTree, type ReferralNode } from '@/components/dashboard/ReferralTree';
 import { formatAddress } from '@/lib/utils';
-
-const REFERRAL_BASE_URL = 'https://kairo.app?ref=';
+import { useReferral } from '@/hooks/useReferral';
+import { useToast } from '@/providers/ToastProvider';
 
 export default function ReferralsPage() {
   const { address, isConnected } = useAccount();
+  const { referralLink } = useReferral();
+  const { addToast } = useToast();
   const [copied, setCopied] = useState(false);
-
-  const referralLink = address ? `${REFERRAL_BASE_URL}${address}` : '';
 
   // Direct referrals
   const { data: directReferrals } = useReadContract({
@@ -43,7 +45,34 @@ export default function ReferralsPage() {
     query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR },
   });
 
-  const directCount = (directReferrals as string[] | undefined)?.length ?? 0;
+  // My upline (who referred me)
+  const { data: myReferrer } = useReadContract({
+    address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
+    abi: AffiliateDistributorABI,
+    functionName: 'referrerOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR },
+  });
+
+  // All income (for total earned display)
+  const { data: allIncome } = useReadContract({
+    address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
+    abi: AffiliateDistributorABI,
+    functionName: 'getAllIncome',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR },
+  });
+
+  // Direct count from contract
+  const { data: directCountData } = useReadContract({
+    address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
+    abi: AffiliateDistributorABI,
+    functionName: 'directCount',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR },
+  });
+
+  const directCount = directCountData ? Number(directCountData as bigint) : (directReferrals as string[] | undefined)?.length ?? 0;
   const teamVolumeUSD = teamVolume ? Number(formatUnits(teamVolume as bigint, 18)) : 0;
 
   // Build tree data from direct referrals (mock deeper levels for display)
@@ -61,9 +90,19 @@ export default function ReferralsPage() {
     if (referralLink) {
       navigator.clipboard.writeText(referralLink);
       setCopied(true);
+      addToast('success', 'Copied!', 'Referral link copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [referralLink]);
+  }, [referralLink, addToast]);
+
+  const totalEarned = useMemo(() => {
+    if (!allIncome) return 0;
+    const [d, t, r, w, m] = allIncome as unknown as bigint[];
+    return Number(formatUnits(d + t + r + w + m, 18));
+  }, [allIncome]);
+
+  const uplineAddress = myReferrer as string | undefined;
+  const hasUpline = uplineAddress && uplineAddress !== '0x0000000000000000000000000000000000000000';
 
   const shareTwitter = () => {
     const text = encodeURIComponent(`Join me on KAIRO DeFi! Stake USDT and earn KAIRO rewards. ${referralLink}`);
@@ -105,7 +144,7 @@ export default function ReferralsPage() {
         </h2>
         <div className="flex gap-2 mb-4">
           <div className="flex-1 px-4 py-2.5 rounded-lg bg-dark-900 border border-dark-700 text-dark-300 text-sm font-mono truncate">
-            {address ? `${REFERRAL_BASE_URL}${formatAddress(address)}` : 'Connect wallet'}
+            {referralLink || 'Connect wallet to generate'}
           </div>
           <button
             onClick={handleCopy}
@@ -154,12 +193,32 @@ export default function ReferralsPage() {
         </div>
       </motion.div>
 
+      {/* My Upline */}
+      {hasUpline && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="glass rounded-xl p-4 mb-6"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-accent-500/10 text-accent-400">
+              <ArrowUpIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs text-dark-500">Your Upline (Referred by)</p>
+              <p className="text-sm font-mono text-dark-200">{formatAddress(uplineAddress!)}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Referral Stats */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
       >
         <StatCard
           label="Direct Referrals"
@@ -167,13 +226,18 @@ export default function ReferralsPage() {
           icon={<UserGroupIcon className="w-5 h-5" />}
         />
         <StatCard
-          label="Total Team Size"
-          value={directCount.toString()}
-          icon={<UserGroupIcon className="w-5 h-5" />}
-        />
-        <StatCard
           label="Team Volume"
           value={`$${teamVolumeUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          icon={<CurrencyDollarIcon className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Total Earned"
+          value={`$${totalEarned.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          icon={<CurrencyDollarIcon className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Referral Addresses"
+          value={(directReferrals as string[] | undefined)?.length.toString() ?? '0'}
           icon={<UserGroupIcon className="w-5 h-5" />}
         />
       </motion.div>

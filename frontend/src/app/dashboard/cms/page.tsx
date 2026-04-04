@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import { motion } from 'framer-motion';
@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useCMS } from '@/hooks/useCMS';
 import { useStaking } from '@/hooks/useStaking';
+import { useReferral } from '@/hooks/useReferral';
 import { CONTRACTS, USDTABI } from '@/lib/contracts';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -37,10 +38,18 @@ export default function CMSPage() {
     isConfirming,
   } = useCMS();
   const { stakes } = useStaking();
+  const { referrer: storedReferrer } = useReferral();
 
   const [subAmount, setSubAmount] = useState('1');
   const [referrer, setReferrer] = useState('');
   const [claimModalOpen, setClaimModalOpen] = useState(false);
+
+  // Auto-fill referrer from localStorage on mount
+  useEffect(() => {
+    if (storedReferrer && !referrer) {
+      setReferrer(storedReferrer);
+    }
+  }, [storedReferrer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // USDT allowance for CMS
   const { data: usdtAllowance, refetch: refetchAllowance } = useReadContract({

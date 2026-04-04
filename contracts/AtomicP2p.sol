@@ -7,14 +7,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
- * @title P2PEscrow - Atomic Settlement P2P Trading
+ * @title AtomicP2p - Atomic Settlement P2P Trading
  * @notice Decentralized peer-to-peer escrow for KAIRO/USDT trades with instant settlement
  * @dev Zero-confirmation atomic swaps - trades settle instantly with mathematical certainty
  *      No dispute windows, no manual confirmations, pure trustless execution
  *      KAIRO fee burning for deflation
  */
 
-interface IAuxFund {
+interface ILiquidityPool {
     function getCurrentPrice() external view returns (uint256);
     function receiveP2PFee(uint256 amount) external;
 }
@@ -23,7 +23,7 @@ interface IKAIROToken is IERC20 {
     function burn(uint256 amount) external;
 }
 
-contract P2PEscrow is ReentrancyGuard, AccessControl {
+contract AtomicP2p is ReentrancyGuard, AccessControl {
     using SafeERC20 for IERC20;
     using SafeERC20 for IKAIROToken;
 
@@ -34,7 +34,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     // ============ State Variables ============
     IKAIROToken public immutable kairoToken;
     IERC20 public immutable usdtToken;
-    IAuxFund public immutable auxFund;
+    ILiquidityPool public immutable liquidityPool;
 
     uint256 public constant FEE_PERCENTAGE = 200; // 2% = 200 basis points
     uint256 public constant FEE_DENOMINATOR = 10000;
@@ -142,23 +142,23 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     // ============ Constructor ============
     
     /**
-     * @notice Initialize P2P Escrow with token addresses
+     * @notice Initialize AtomicP2p with token addresses
      * @param _kairoToken KAIRO token contract address
      * @param _usdtToken USDT token contract address
-     * @param _auxFund AuxFund contract address for pricing and fees
+     * @param _liquidityPool LiquidityPool contract address for pricing and fees
      */
     constructor(
         address _kairoToken,
         address _usdtToken,
-        address _auxFund
+        address _liquidityPool
     ) {
         require(_kairoToken != address(0), "Invalid KAIRO address");
         require(_usdtToken != address(0), "Invalid USDT address");
-        require(_auxFund != address(0), "Invalid AuxFund address");
+        require(_liquidityPool != address(0), "Invalid LiquidityPool address");
 
         kairoToken = IKAIROToken(_kairoToken);
         usdtToken = IERC20(_usdtToken);
-        auxFund = IAuxFund(_auxFund);
+        liquidityPool = ILiquidityPool(_liquidityPool);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
@@ -168,7 +168,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
 
     /**
      * @notice Create a buy order by locking USDT
-     * @dev Creator locks USDT, no price specified - matches at live AuxFund price
+     * @dev Creator locks USDT, no price specified - matches at live LiquidityPool price
      * @param usdtAmount Amount of USDT to lock for buying KAIRO
      * @return orderId The ID of the created buy order
      */
@@ -197,7 +197,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
 
     /**
      * @notice Create a sell order by locking KAIRO
-     * @dev Creator locks KAIRO, no price specified - matches at live AuxFund price
+     * @dev Creator locks KAIRO, no price specified - matches at live LiquidityPool price
      * @param kairoAmount Amount of KAIRO to lock for selling
      * @return orderId The ID of the created sell order
      */
@@ -330,9 +330,9 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         // 3. Transfer net KAIRO to buy order creator
         kairoToken.safeTransfer(buyOrder.creator, netKairo);
         
-        // 4. Transfer USDT fee to AuxFund
-        usdtToken.safeTransfer(address(auxFund), usdtFee);
-        auxFund.receiveP2PFee(usdtFee);
+        // 4. Transfer USDT fee to LiquidityPool
+        usdtToken.safeTransfer(address(liquidityPool), usdtFee);
+        liquidityPool.receiveP2PFee(usdtFee);
         emit USDTFeeDistributed(tradeId, usdtFee);
         
         // 5. Transfer net USDT to seller (caller)
@@ -442,9 +442,9 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         // 1. Transfer USDT from caller to contract
         usdtToken.safeTransferFrom(msg.sender, address(this), usdtRequired);
         
-        // 2. Transfer USDT fee to AuxFund
-        usdtToken.safeTransfer(address(auxFund), usdtFee);
-        auxFund.receiveP2PFee(usdtFee);
+        // 2. Transfer USDT fee to LiquidityPool
+        usdtToken.safeTransfer(address(liquidityPool), usdtFee);
+        liquidityPool.receiveP2PFee(usdtFee);
         emit USDTFeeDistributed(tradeId, usdtFee);
         
         // 3. Transfer net USDT to sell order creator
@@ -681,9 +681,9 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         // All succeed together or all fail together
         // ==========================================
         
-        // 1. FEE DISTRIBUTION TO AUXFUND (USDT)
-        usdtToken.safeTransfer(address(auxFund), usdtFee);
-        auxFund.receiveP2PFee(usdtFee);
+        // 1. FEE DISTRIBUTION TO LIQUIDITYPOOL (USDT)
+        usdtToken.safeTransfer(address(liquidityPool), usdtFee);
+        liquidityPool.receiveP2PFee(usdtFee);
         emit USDTFeeDistributed(tradeId, usdtFee);
         
         // 2. DEFLATIONARY BURN (KAIRO)
@@ -704,11 +704,11 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     }
     
     /**
-     * @dev Enhanced price validation from AuxFund
+     * @dev Enhanced price validation from LiquidityPool
      * @return price Validated current price
      */
     function _getValidatedPrice() internal view returns (uint256 price) {
-        price = auxFund.getCurrentPrice();
+        price = liquidityPool.getCurrentPrice();
         
         // Sanity checks
         require(price > 0, "P2P: Zero price from oracle");
@@ -760,11 +760,11 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     }
 
     /**
-     * @notice Get current AuxFund price
-     * @return Current KAIRO/USDT price from AuxFund
+     * @notice Get current LiquidityPool price
+     * @return Current KAIRO/USDT price from LiquidityPool
      */
     function getCurrentPrice() external view returns (uint256) {
-        return auxFund.getCurrentPrice();
+        return liquidityPool.getCurrentPrice();
     }
 
     /**
@@ -777,7 +777,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         view 
         returns (uint256) 
     {
-        uint256 currentPrice = auxFund.getCurrentPrice();
+        uint256 currentPrice = liquidityPool.getCurrentPrice();
         return (kairoAmount * currentPrice) / 1e18;
     }
 
@@ -791,7 +791,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         view 
         returns (uint256) 
     {
-        uint256 currentPrice = auxFund.getCurrentPrice();
+        uint256 currentPrice = liquidityPool.getCurrentPrice();
         require(currentPrice > 0, "Invalid price");
         return (usdtAmount * 1e18) / currentPrice;
     }
@@ -804,7 +804,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
      * @return netKairoToBuyer KAIRO buyer receives after fees
      * @return netUsdtToSeller USDT seller receives after fees
      * @return kairoFee Fee to be burned
-     * @return usdtFee Fee to AuxFund
+     * @return usdtFee Fee to LiquidityPool
      * @return canExecute Whether trade is executable
      */
     function simulateTrade(
@@ -833,7 +833,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         }
         
         // Calculate trade details
-        uint256 currentPrice = auxFund.getCurrentPrice();
+        uint256 currentPrice = liquidityPool.getCurrentPrice();
         uint256 usdtRequired = (kairoAmount * currentPrice) / 1e18;
         
         canExecute = canExecute && 
@@ -863,7 +863,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         uint256 orderId,
         uint256 usdtAvailable
     ) {
-        uint256 currentPrice = auxFund.getCurrentPrice();
+        uint256 currentPrice = liquidityPool.getCurrentPrice();
         uint256 maxLiquidity = 0;
         
         for (uint256 i = 1; i < nextBuyOrderId; i++) {
@@ -890,7 +890,7 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         uint256 orderId,
         uint256 kairoAvailable
     ) {
-        uint256 currentPrice = auxFund.getCurrentPrice();
+        uint256 currentPrice = liquidityPool.getCurrentPrice();
         uint256 maxLiquidity = 0;
         
         for (uint256 i = 1; i < nextSellOrderId; i++) {
@@ -998,14 +998,12 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     {
         uint256 count = 0;
         
-        // Count active orders
         for (uint256 i = 1; i < nextBuyOrderId; i++) {
             if (buyOrders[i].active && buyOrders[i].usdtRemaining > 0) {
                 count++;
             }
         }
         
-        // Calculate range
         uint256 start = offset;
         uint256 end = offset + limit;
         if (end > count) end = count;
@@ -1015,7 +1013,6 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         uint256 activeIndex = 0;
         uint256 resultIndex = 0;
         
-        // Fill array
         for (uint256 i = 1; i < nextBuyOrderId && resultIndex < resultSize; i++) {
             if (buyOrders[i].active && buyOrders[i].usdtRemaining > 0) {
                 if (activeIndex >= start && activeIndex < end) {
@@ -1040,14 +1037,12 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     {
         uint256 count = 0;
         
-        // Count active orders
         for (uint256 i = 1; i < nextBuyOrderId; i++) {
             if (buyOrders[i].active && buyOrders[i].usdtRemaining > 0) {
                 count++;
             }
         }
         
-        // Calculate range
         uint256 start = offset;
         uint256 end = offset + limit;
         if (end > count) end = count;
@@ -1057,7 +1052,6 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         uint256 activeIndex = 0;
         uint256 resultIndex = 0;
         
-        // Fill array with IDs
         for (uint256 i = 1; i < nextBuyOrderId && resultIndex < resultSize; i++) {
             if (buyOrders[i].active && buyOrders[i].usdtRemaining > 0) {
                 if (activeIndex >= start && activeIndex < end) {
@@ -1082,14 +1076,12 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     {
         uint256 count = 0;
         
-        // Count active orders
         for (uint256 i = 1; i < nextSellOrderId; i++) {
             if (sellOrders[i].active && sellOrders[i].kairoRemaining > 0) {
                 count++;
             }
         }
         
-        // Calculate range
         uint256 start = offset;
         uint256 end = offset + limit;
         if (end > count) end = count;
@@ -1099,7 +1091,6 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         uint256 activeIndex = 0;
         uint256 resultIndex = 0;
         
-        // Fill array
         for (uint256 i = 1; i < nextSellOrderId && resultIndex < resultSize; i++) {
             if (sellOrders[i].active && sellOrders[i].kairoRemaining > 0) {
                 if (activeIndex >= start && activeIndex < end) {
@@ -1124,14 +1115,12 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
     {
         uint256 count = 0;
         
-        // Count active orders
         for (uint256 i = 1; i < nextSellOrderId; i++) {
             if (sellOrders[i].active && sellOrders[i].kairoRemaining > 0) {
                 count++;
             }
         }
         
-        // Calculate range
         uint256 start = offset;
         uint256 end = offset + limit;
         if (end > count) end = count;
@@ -1141,7 +1130,6 @@ contract P2PEscrow is ReentrancyGuard, AccessControl {
         uint256 activeIndex = 0;
         uint256 resultIndex = 0;
         
-        // Fill array with IDs
         for (uint256 i = 1; i < nextSellOrderId && resultIndex < resultSize; i++) {
             if (sellOrders[i].active && sellOrders[i].kairoRemaining > 0) {
                 if (activeIndex >= start && activeIndex < end) {

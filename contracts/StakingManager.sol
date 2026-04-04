@@ -23,9 +23,9 @@ interface IKAIROToken {
 }
 
 /**
- * @title IAuxFund - Interface for AuxFund (LiquidityPool) interactions
+ * @title ILiquidityPool - Interface for LiquidityPool interactions
  */
-interface IAuxFund {
+interface ILiquidityPool {
     function getLivePrice() external view returns (uint256);
     function receiveStakingFunds(uint256 amount) external;
 }
@@ -83,7 +83,7 @@ contract StakingManager is ReentrancyGuard, Pausable, AccessControl {
 
     // ============ External Contract References ============
     IKAIROToken public kairoToken;
-    IAuxFund public auxFund;
+    ILiquidityPool public liquidityPool;
     IERC20 public usdt;
     address public affiliateDistributor;
     address public systemWallet;
@@ -108,19 +108,19 @@ contract StakingManager is ReentrancyGuard, Pausable, AccessControl {
     // ============ Constructor ============
     constructor(
         address _kairoToken,
-        address _auxFund,
+        address _liquidityPool,
         address _usdt,
         address _systemWallet,
         address _admin
     ) {
         require(_kairoToken != address(0), "StakingManager: Invalid KAIRO token");
-        require(_auxFund != address(0), "StakingManager: Invalid AuxFund");
+        require(_liquidityPool != address(0), "StakingManager: Invalid LiquidityPool");
         require(_usdt != address(0), "StakingManager: Invalid USDT");
         require(_systemWallet != address(0), "StakingManager: Invalid system wallet");
         require(_admin != address(0), "StakingManager: Invalid admin");
 
         kairoToken = IKAIROToken(_kairoToken);
-        auxFund = IAuxFund(_auxFund);
+        liquidityPool = ILiquidityPool(_liquidityPool);
         usdt = IERC20(_usdt);
         systemWallet = _systemWallet;
 
@@ -150,11 +150,11 @@ contract StakingManager is ReentrancyGuard, Pausable, AccessControl {
         // Transfer USDT from user to this contract
         require(usdt.transferFrom(msg.sender, address(this), _usdtAmount), "StakingManager: USDT transfer failed");
 
-        // Forward 60% of staking funds to AuxFund for liquidity backing
-        uint256 auxFundShare = (_usdtAmount * 60) / 100;
-        require(usdt.approve(address(auxFund), auxFundShare), "StakingManager: USDT approve failed");
-        require(usdt.transfer(address(auxFund), auxFundShare), "StakingManager: AuxFund transfer failed");
-        auxFund.receiveStakingFunds(auxFundShare);
+        // Forward 60% of staking funds to LiquidityPool for liquidity backing
+        uint256 liquidityPoolShare = (_usdtAmount * 60) / 100;
+        require(usdt.approve(address(liquidityPool), liquidityPoolShare), "StakingManager: USDT approve failed");
+        require(usdt.transfer(address(liquidityPool), liquidityPoolShare), "StakingManager: LiquidityPool transfer failed");
+        liquidityPool.receiveStakingFunds(liquidityPoolShare);
 
         // Create new stake
         uint256 stakeId = userStakes[msg.sender].length;

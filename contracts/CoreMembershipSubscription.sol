@@ -15,9 +15,9 @@ interface IKAIROToken {
 }
 
 /**
- * @title IAuxFund - Interface for AuxFund price oracle
+ * @title ILiquidityPool - Interface for LiquidityPool price oracle
  */
-interface IAuxFund {
+interface ILiquidityPool {
     function getLivePrice() external view returns (uint256);
 }
 
@@ -71,7 +71,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
     // External contracts
     IKAIROToken public kairoToken;
     IERC20 public usdt;
-    IAuxFund public auxFund;
+    ILiquidityPool public liquidityPool;
     IStakingManager public stakingManager;
     IAffiliateDistributor public affiliateDistributor;
     address public systemWallet;
@@ -85,7 +85,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
     constructor(
         address _kairoToken,
         address _usdt,
-        address _auxFund,
+        address _liquidityPool,
         address _stakingManager,
         address _affiliateDistributor,
         address _systemWallet,
@@ -93,7 +93,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
     ) {
         require(_kairoToken != address(0), "CMS: Invalid KAIRO token");
         require(_usdt != address(0), "CMS: Invalid USDT");
-        require(_auxFund != address(0), "CMS: Invalid AuxFund");
+        require(_liquidityPool != address(0), "CMS: Invalid LiquidityPool");
         require(_stakingManager != address(0), "CMS: Invalid StakingManager");
         require(_affiliateDistributor != address(0), "CMS: Invalid AffiliateDistributor");
         require(_systemWallet != address(0), "CMS: Invalid system wallet");
@@ -101,7 +101,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
 
         kairoToken = IKAIROToken(_kairoToken);
         usdt = IERC20(_usdt);
-        auxFund = IAuxFund(_auxFund);
+        liquidityPool = ILiquidityPool(_liquidityPool);
         stakingManager = IStakingManager(_stakingManager);
         affiliateDistributor = IAffiliateDistributor(_affiliateDistributor);
         systemWallet = _systemWallet;
@@ -126,8 +126,8 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
 
         uint256 totalCost = _amount * CMS_PRICE;
 
-        // Transfer USDT from buyer to AuxFund (the liquidity pool)
-        require(usdt.transferFrom(msg.sender, address(auxFund), totalCost), "CMS: USDT transfer failed");
+        // Transfer USDT from buyer to LiquidityPool (the liquidity pool)
+        require(usdt.transferFrom(msg.sender, address(liquidityPool), totalCost), "CMS: USDT transfer failed");
 
         // Update subscription counts
         subscriptionCount[msg.sender] += _amount;
@@ -186,7 +186,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
         require(totalClaimable > 0, "CMS: Nothing to claim");
 
         // Calculate max claimable based on stake value
-        uint256 livePrice = auxFund.getLivePrice();
+        uint256 livePrice = liquidityPool.getLivePrice();
         require(livePrice > 0, "CMS: Invalid price");
 
         uint256 maxClaimableKairo = (activeStakeValue * 1e18) / livePrice;
@@ -246,7 +246,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
         uint256 activeStakeValue = stakingManager.getTotalActiveStakeValue(_user);
         if (activeStakeValue == 0) return 0;
 
-        uint256 livePrice = auxFund.getLivePrice();
+        uint256 livePrice = liquidityPool.getLivePrice();
         if (livePrice == 0) return 0;
 
         return (activeStakeValue * 1e18) / livePrice;
@@ -264,7 +264,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
         uint256 activeStakeValue = stakingManager.getTotalActiveStakeValue(_user);
         if (activeStakeValue == 0) return totalClaimable;
 
-        uint256 livePrice = auxFund.getLivePrice();
+        uint256 livePrice = liquidityPool.getLivePrice();
         if (livePrice == 0) return totalClaimable;
 
         uint256 maxClaimableKairo = (activeStakeValue * 1e18) / livePrice;

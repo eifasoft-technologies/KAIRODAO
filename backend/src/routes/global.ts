@@ -5,7 +5,7 @@ import { cache, TTL } from '../utils/cache';
 import {
     getLivePrice,
     getKAIROToken,
-    getAuxFund,
+    getLiquidityPool,
     getCMS,
     getCurrentBlock,
 } from '../services/blockchain';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useEffect, useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
@@ -17,9 +17,14 @@ import {
   ArrowsRightLeftIcon,
   ExclamationTriangleIcon,
   BeakerIcon,
+  LinkIcon,
+  UserGroupIcon,
+  ClipboardDocumentIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 import { useStaking } from '@/hooks/useStaking';
 import { useCMS } from '@/hooks/useCMS';
+import { useReferral } from '@/hooks/useReferral';
 import { CONTRACTS, AffiliateDistributorABI, USDTABI } from '@/lib/contracts';
 import { StatCard } from '@/components/ui/StatCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -43,8 +48,10 @@ export default function DashboardPage() {
   const { address, isConnected } = useAccount();
   const { stakes, totalStakeValue, isLoadingStakes, refetchStakes } = useStaking();
   const { claimableRewards, hasClaimed, subscriptionCount } = useCMS();
+  const { referralLink } = useReferral();
   const { subscribe } = useWS();
   const { addToast } = useToast();
+  const [copied, setCopied] = useState(false);
 
   // Testnet Faucet — mint MockUSDT
   const { data: usdtBalance, refetch: refetchUsdtBalance } = useReadContract({
@@ -108,6 +115,27 @@ export default function DashboardPage() {
     query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR, refetchInterval: 30_000 },
   });
 
+  // Direct referral count
+  const { data: directCountData } = useReadContract({
+    address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
+    abi: AffiliateDistributorABI,
+    functionName: 'directCount',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR, refetchInterval: 30_000 },
+  });
+
+  // Team volume
+  const { data: teamVolumeData } = useReadContract({
+    address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
+    abi: AffiliateDistributorABI,
+    functionName: 'getTeamVolume',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR, refetchInterval: 30_000 },
+  });
+
+  const directCount = directCountData ? Number(directCountData as bigint) : 0;
+  const teamVolumeUSD = teamVolumeData ? Number(formatUnits(teamVolumeData as bigint, 18)) : 0;
+
   // Computed values
   const totalStakedUSD = totalStakeValue ? Number(formatUnits(totalStakeValue as bigint, 18)) : 0;
   const harvestableUSD = totalHarvestable ? Number(formatUnits(totalHarvestable as bigint, 18)) : 0;
@@ -143,6 +171,15 @@ export default function DashboardPage() {
   }, [claimableRewards]);
 
   const capColor = capPercent >= 80 ? 'danger' : capPercent >= 50 ? 'accent' : 'primary';
+
+  const handleCopyReferral = useCallback(() => {
+    if (referralLink) {
+      navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      addToast('success', 'Copied!', 'Referral link copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [referralLink, addToast]);
 
   // Listen for compound events via WebSocket
   useEffect(() => {
@@ -359,6 +396,66 @@ export default function DashboardPage() {
           </div>
         )}
       </motion.div>
+
+      {/* Referral Link + My Team */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <motion.div {...fadeUp} transition={{ delay: 0.45 }}>
+          <div className="glass rounded-xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-primary-500/10 text-primary-400">
+                <LinkIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-dark-100">Your Referral Link</h3>
+                <p className="text-[10px] text-dark-500">{directCount} direct referral{directCount !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1 px-3 py-2 rounded-lg bg-dark-900 border border-dark-700 text-dark-400 text-xs font-mono truncate">
+                {referralLink || 'Connect wallet to generate'}
+              </div>
+              <button
+                onClick={handleCopyReferral}
+                disabled={!referralLink}
+                className="px-3 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {copied ? (
+                  <><CheckIcon className="w-3.5 h-3.5" /> Copied</>
+                ) : (
+                  <><ClipboardDocumentIcon className="w-3.5 h-3.5" /> Copy</>
+                )}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div {...fadeUp} transition={{ delay: 0.48 }}>
+          <Link href="/dashboard/referrals" className="glass rounded-xl p-5 glass-hover group block h-full">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-accent-500/10 text-accent-400 group-hover:bg-accent-500/20 transition-colors">
+                <UserGroupIcon className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-dark-100">My Team</h3>
+                <p className="text-[10px] text-dark-500">View your referral network</p>
+              </div>
+              <ArrowRightIcon className="w-4 h-4 text-dark-500 group-hover:text-accent-400 transition-colors" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="px-3 py-2 rounded-lg bg-dark-900/60">
+                <p className="text-[10px] text-dark-500">Direct Referrals</p>
+                <p className="text-lg font-semibold text-dark-50 font-mono">{directCount}</p>
+              </div>
+              <div className="px-3 py-2 rounded-lg bg-dark-900/60">
+                <p className="text-[10px] text-dark-500">Team Volume</p>
+                <p className="text-lg font-semibold text-dark-50 font-mono">
+                  ${teamVolumeUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </p>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+      </div>
 
       {/* Quick Actions */}
       <motion.div {...fadeUp} transition={{ delay: 0.5 }} className="grid grid-cols-1 sm:grid-cols-3 gap-4">

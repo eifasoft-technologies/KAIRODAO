@@ -415,7 +415,7 @@ async function handleRewardsClaimed(
     await setLastIndexedBlock('CMS', blockNumber);
 }
 
-// ============ P2PEscrow Event Handlers ============
+// ============ AtomicP2p Event Handlers ============
 
 async function handleBuyOrderCreated(
     orderId: bigint, creator: string, usdtAmount: bigint, timestamp: bigint,
@@ -434,7 +434,7 @@ async function handleBuyOrderCreated(
     } catch (err) {
         console.error('[P2P] Error handling BuyOrderCreated:', err);
     }
-    await setLastIndexedBlock('P2PEscrow', blockNumber);
+    await setLastIndexedBlock('AtomicP2p', blockNumber);
 }
 
 async function handleSellOrderCreated(
@@ -454,7 +454,7 @@ async function handleSellOrderCreated(
     } catch (err) {
         console.error('[P2P] Error handling SellOrderCreated:', err);
     }
-    await setLastIndexedBlock('P2PEscrow', blockNumber);
+    await setLastIndexedBlock('AtomicP2p', blockNumber);
 }
 
 async function handleOrderCancelled(
@@ -473,7 +473,7 @@ async function handleOrderCancelled(
     } catch (err) {
         console.error('[P2P] Error handling OrderCancelled:', err);
     }
-    await setLastIndexedBlock('P2PEscrow', blockNumber);
+    await setLastIndexedBlock('AtomicP2p', blockNumber);
 }
 
 async function handleTradeExecuted(
@@ -539,7 +539,7 @@ async function handleTradeExecuted(
     } finally {
         client.release();
     }
-    await setLastIndexedBlock('P2PEscrow', blockNumber);
+    await setLastIndexedBlock('AtomicP2p', blockNumber);
 }
 
 // ============ Historical Event Processing ============
@@ -650,26 +650,26 @@ function setupRealtimeListeners(contracts: NonNullable<ReturnType<typeof getWsCo
         await handleRewardsClaimed(user, userAmount, systemAmount, excessDeleted, txHash, blockNumber);
     });
 
-    // P2PEscrow
-    contracts.p2pEscrow.on('BuyOrderCreated', async (orderId: bigint, creator: string, usdtAmount: bigint, timestamp: bigint, event: any) => {
+    // AtomicP2p
+    contracts.atomicP2p.on('BuyOrderCreated', async (orderId: bigint, creator: string, usdtAmount: bigint, timestamp: bigint, event: any) => {
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleBuyOrderCreated(orderId, creator, usdtAmount, timestamp, txHash, blockNumber);
     });
 
-    contracts.p2pEscrow.on('SellOrderCreated', async (orderId: bigint, creator: string, kairoAmount: bigint, timestamp: bigint, event: any) => {
+    contracts.atomicP2p.on('SellOrderCreated', async (orderId: bigint, creator: string, kairoAmount: bigint, timestamp: bigint, event: any) => {
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleSellOrderCreated(orderId, creator, kairoAmount, timestamp, txHash, blockNumber);
     });
 
-    contracts.p2pEscrow.on('OrderCancelled', async (orderId: bigint, creator: string, isBuyOrder: boolean, refundedAmount: bigint, event: any) => {
+    contracts.atomicP2p.on('OrderCancelled', async (orderId: bigint, creator: string, isBuyOrder: boolean, refundedAmount: bigint, event: any) => {
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleOrderCancelled(orderId, creator, isBuyOrder, refundedAmount, txHash, blockNumber);
     });
 
-    contracts.p2pEscrow.on('TradeExecuted', async (
+    contracts.atomicP2p.on('TradeExecuted', async (
         tradeId: bigint, buyOrderId: bigint, sellOrderId: bigint,
         buyer: string, seller: string, kairoAmount: bigint,
         usdtAmount: bigint, price: bigint, kairoFee: bigint, usdtFee: bigint,
@@ -701,7 +701,7 @@ export async function startIndexer(): Promise<void> {
         stakingManager: contracts.stakingManager.connect(provider) as ethers.Contract,
         affiliateDistributor: contracts.affiliateDistributor.connect(provider) as ethers.Contract,
         cms: contracts.cms.connect(provider) as ethers.Contract,
-        p2pEscrow: contracts.p2pEscrow.connect(provider) as ethers.Contract,
+        atomicP2p: contracts.atomicP2p.connect(provider) as ethers.Contract,
     };
 
     // Process historical events for each contract
@@ -736,8 +736,8 @@ export async function startIndexer(): Promise<void> {
             },
         },
         {
-            name: 'P2PEscrow',
-            contract: httpContracts.p2pEscrow,
+            name: 'AtomicP2p',
+            contract: httpContracts.atomicP2p,
             handlers: {
                 BuyOrderCreated: handleBuyOrderCreated,
                 SellOrderCreated: handleSellOrderCreated,

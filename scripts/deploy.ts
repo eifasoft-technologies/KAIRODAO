@@ -37,42 +37,42 @@ async function main() {
     console.log("");
 
     // ============================================================
-    // Step 3: Deploy AuxFund (LiquidityPool / Mini-DEX)
+    // Step 3: Deploy LiquidityPool (Mini-DEX)
     // Constructor: (address _kairoToken, address _usdtToken)
     // Grants DEFAULT_ADMIN_ROLE to msg.sender (deployer)
     // ============================================================
-    console.log("Step 3: Deploying AuxFund...");
-    const AuxFund = await ethers.getContractFactory("AuxFund");
-    const auxFund = await AuxFund.deploy(kairoAddress, usdtAddress);
-    await auxFund.waitForDeployment();
-    const auxFundAddress = await auxFund.getAddress();
-    console.log("  AuxFund deployed at:", auxFundAddress);
+    console.log("Step 3: Deploying LiquidityPool...");
+    const LiquidityPool = await ethers.getContractFactory("LiquidityPool");
+    const liquidityPool = await LiquidityPool.deploy(kairoAddress, usdtAddress);
+    await liquidityPool.waitForDeployment();
+    const liquidityPoolAddress = await liquidityPool.getAddress();
+    console.log("  LiquidityPool deployed at:", liquidityPoolAddress);
     console.log("");
 
     // ============================================================
     // Step 4: Configure KAIROToken - set LP and mint initial supply
-    // - setLiquidityPool(auxFund) — one-time, admin only
-    // - mintInitialSupply() — mints 10,000 KAIRO to AuxFund (social lock)
+    // - setLiquidityPool(liquidityPool) — one-time, admin only
+    // - mintInitialSupply() — mints 10,000 KAIRO to LiquidityPool (social lock)
     // ============================================================
     console.log("Step 4: Configuring KAIROToken...");
-    const txSetLP = await kairoToken.setLiquidityPool(auxFundAddress);
+    const txSetLP = await kairoToken.setLiquidityPool(liquidityPoolAddress);
     await txSetLP.wait();
-    console.log("  LiquidityPool set to AuxFund");
+    console.log("  LiquidityPool set to LiquidityPool");
 
     const txMint = await kairoToken.mintInitialSupply();
     await txMint.wait();
-    console.log("  Initial supply minted (10,000 KAIRO social lock to AuxFund)");
+    console.log("  Initial supply minted (10,000 KAIRO social lock to LiquidityPool)");
     console.log("");
 
     // ============================================================
     // Step 5: Deploy AffiliateDistributor
-    // Constructor: (address _kairoToken, address _auxFund, address _admin, address _systemWallet)
+    // Constructor: (address _kairoToken, address _liquidityPool, address _admin, address _systemWallet)
     // ============================================================
     console.log("Step 5: Deploying AffiliateDistributor...");
     const AffiliateDistributor = await ethers.getContractFactory("AffiliateDistributor");
     const affiliateDistributor = await AffiliateDistributor.deploy(
         kairoAddress,
-        auxFundAddress,
+        liquidityPoolAddress,
         deployer.address,
         systemWallet
     );
@@ -83,13 +83,13 @@ async function main() {
 
     // ============================================================
     // Step 6: Deploy StakingManager
-    // Constructor: (address _kairoToken, address _auxFund, address _usdt, address _systemWallet, address _admin)
+    // Constructor: (address _kairoToken, address _liquidityPool, address _usdt, address _systemWallet, address _admin)
     // ============================================================
     console.log("Step 6: Deploying StakingManager...");
     const StakingManager = await ethers.getContractFactory("StakingManager");
     const stakingManager = await StakingManager.deploy(
         kairoAddress,
-        auxFundAddress,
+        liquidityPoolAddress,
         usdtAddress,
         systemWallet,
         deployer.address
@@ -110,7 +110,7 @@ async function main() {
 
     // ============================================================
     // Step 7: Deploy CoreMembershipSubscription (CMS)
-    // Constructor: (address _kairoToken, address _usdt, address _auxFund,
+    // Constructor: (address _kairoToken, address _usdt, address _liquidityPool,
     //               address _stakingManager, address _affiliateDistributor,
     //               address _systemWallet, address _admin)
     // ============================================================
@@ -119,7 +119,7 @@ async function main() {
     const cms = await CMS.deploy(
         kairoAddress,
         usdtAddress,
-        auxFundAddress,
+        liquidityPoolAddress,
         stakingAddress,
         affiliateAddress,
         systemWallet,
@@ -131,16 +131,16 @@ async function main() {
     console.log("");
 
     // ============================================================
-    // Step 8: Deploy P2PEscrow
-    // Constructor: (address _kairoToken, address _usdtToken, address _auxFund)
+    // Step 8: Deploy AtomicP2p
+    // Constructor: (address _kairoToken, address _usdtToken, address _liquidityPool)
     // Grants DEFAULT_ADMIN_ROLE + ADMIN_ROLE to msg.sender
     // ============================================================
-    console.log("Step 8: Deploying P2PEscrow...");
-    const P2PEscrow = await ethers.getContractFactory("P2PEscrow");
-    const p2pEscrow = await P2PEscrow.deploy(kairoAddress, usdtAddress, auxFundAddress);
-    await p2pEscrow.waitForDeployment();
-    const p2pAddress = await p2pEscrow.getAddress();
-    console.log("  P2PEscrow deployed at:", p2pAddress);
+    console.log("Step 8: Deploying AtomicP2p...");
+    const AtomicP2p = await ethers.getContractFactory("AtomicP2p");
+    const atomicP2p = await AtomicP2p.deploy(kairoAddress, usdtAddress, liquidityPoolAddress);
+    await atomicP2p.waitForDeployment();
+    const p2pAddress = await atomicP2p.getAddress();
+    console.log("  AtomicP2p deployed at:", p2pAddress);
     console.log("");
 
     // ============================================================
@@ -167,15 +167,15 @@ async function main() {
     await tx.wait();
     console.log("  KAIROToken: MINTER_ROLE -> CoreMembershipSubscription");
 
-    // Grant BURNER_ROLE to AuxFund (for burn on swapKAIROForUSDT)
-    tx = await kairoToken.grantRole(BURNER_ROLE, auxFundAddress);
+    // Grant BURNER_ROLE to LiquidityPool (for burn on swapKAIROForUSDT)
+    tx = await kairoToken.grantRole(BURNER_ROLE, liquidityPoolAddress);
     await tx.wait();
-    console.log("  KAIROToken: BURNER_ROLE -> AuxFund");
+    console.log("  KAIROToken: BURNER_ROLE -> LiquidityPool");
 
-    // Grant BURNER_ROLE to P2PEscrow (for burn on trade fee)
+    // Grant BURNER_ROLE to AtomicP2p (for burn on trade fee)
     tx = await kairoToken.grantRole(BURNER_ROLE, p2pAddress);
     await tx.wait();
-    console.log("  KAIROToken: BURNER_ROLE -> P2PEscrow");
+    console.log("  KAIROToken: BURNER_ROLE -> AtomicP2p");
 
     // --- AffiliateDistributor Roles ---
     const RANK_UPDATER_ROLE = await affiliateDistributor.RANK_UPDATER_ROLE();
@@ -193,36 +193,36 @@ async function main() {
     await tx.wait();
     console.log("  StakingManager: COMPOUNDER_ROLE -> deployer");
 
-    // --- AuxFund Roles ---
+    // --- LiquidityPool Roles ---
     // Grant CORE_ROLE to StakingManager (for receiveStakingFunds, etc.)
-    tx = await auxFund.grantCoreRole(stakingAddress);
+    tx = await liquidityPool.grantCoreRole(stakingAddress);
     await tx.wait();
-    console.log("  AuxFund: CORE_ROLE -> StakingManager");
+    console.log("  LiquidityPool: CORE_ROLE -> StakingManager");
 
     // Grant CORE_ROLE to CMS (for withdrawUSDT, receiveForfeitedTierBonus, etc.)
-    tx = await auxFund.grantCoreRole(cmsAddress);
+    tx = await liquidityPool.grantCoreRole(cmsAddress);
     await tx.wait();
-    console.log("  AuxFund: CORE_ROLE -> CoreMembershipSubscription");
+    console.log("  LiquidityPool: CORE_ROLE -> CoreMembershipSubscription");
 
-    // Grant P2P_ROLE to P2PEscrow (for receiveP2PFee)
-    tx = await auxFund.grantP2PRole(p2pAddress);
+    // Grant P2P_ROLE to AtomicP2p (for receiveP2PFee)
+    tx = await liquidityPool.grantP2PRole(p2pAddress);
     await tx.wait();
-    console.log("  AuxFund: P2P_ROLE -> P2PEscrow");
+    console.log("  LiquidityPool: P2P_ROLE -> AtomicP2p");
 
     console.log("");
 
     // ============================================================
-    // Step 10: Seed AuxFund with initial USDT liquidity
-    // Transfer initial USDT to AuxFund so price oracle works correctly
+    // Step 10: Seed LiquidityPool with initial USDT liquidity
+    // Transfer initial USDT to LiquidityPool so price oracle works correctly
     // ============================================================
-    console.log("Step 10: Seeding AuxFund with initial USDT liquidity...");
+    console.log("Step 10: Seeding LiquidityPool with initial USDT liquidity...");
     const INITIAL_LIQUIDITY = ethers.parseEther("10000"); // 10,000 USDT
-    tx = await mockUSDT.transfer(auxFundAddress, INITIAL_LIQUIDITY);
+    tx = await mockUSDT.transfer(liquidityPoolAddress, INITIAL_LIQUIDITY);
     await tx.wait();
-    console.log("  Transferred 10,000 USDT to AuxFund");
+    console.log("  Transferred 10,000 USDT to LiquidityPool");
 
     // Verify initial price
-    const initialPrice = await auxFund.getLivePrice();
+    const initialPrice = await liquidityPool.getLivePrice();
     console.log("  Initial KAIRO price:", ethers.formatEther(initialPrice), "USDT");
     console.log("");
 
@@ -236,27 +236,27 @@ async function main() {
     console.log("Contract Addresses:");
     console.log("  MockUSDT:                    ", usdtAddress);
     console.log("  KAIROToken:                  ", kairoAddress);
-    console.log("  AuxFund:                     ", auxFundAddress);
+    console.log("  LiquidityPool:               ", liquidityPoolAddress);
     console.log("  AffiliateDistributor:        ", affiliateAddress);
     console.log("  StakingManager:              ", stakingAddress);
     console.log("  CoreMembershipSubscription:  ", cmsAddress);
-    console.log("  P2PEscrow:                   ", p2pAddress);
+    console.log("  AtomicP2p:                   ", p2pAddress);
     console.log("");
     console.log("Configuration:");
     console.log("  System Wallet:               ", systemWallet);
     console.log("  Deployer (admin):            ", deployer.address);
     console.log("  Initial KAIRO Price:         ", ethers.formatEther(initialPrice), "USDT");
-    console.log("  Social Lock:                  10,000 KAIRO (locked in AuxFund)");
+    console.log("  Social Lock:                  10,000 KAIRO (locked in LiquidityPool)");
     console.log("  Initial USDT Liquidity:       10,000 USDT");
     console.log("");
     console.log("Roles Granted:");
     console.log("  KAIROToken MINTER_ROLE:       StakingManager, AffiliateDistributor, CMS");
-    console.log("  KAIROToken BURNER_ROLE:       AuxFund, P2PEscrow");
+    console.log("  KAIROToken BURNER_ROLE:       LiquidityPool, AtomicP2p");
     console.log("  AffiliateDistributor STAKING_ROLE: StakingManager");
     console.log("  AffiliateDistributor RANK_UPDATER_ROLE: deployer");
     console.log("  StakingManager COMPOUNDER_ROLE: deployer");
-    console.log("  AuxFund CORE_ROLE:            StakingManager, CMS");
-    console.log("  AuxFund P2P_ROLE:             P2PEscrow");
+    console.log("  LiquidityPool CORE_ROLE:      StakingManager, CMS");
+    console.log("  LiquidityPool P2P_ROLE:       AtomicP2p");
     console.log("=========================================");
 }
 

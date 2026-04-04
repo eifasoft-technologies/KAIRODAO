@@ -5,14 +5,6 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface ISLDToken is IERC20 {
-    function burn(uint256 amount) external;
-    function mint(address to, uint256 amount) external;
-    function getTotalBurned() external view returns (uint256);
-    function getSocialLockAmount() external view returns (uint256);
-    function getEffectiveSupply() external view returns (uint256);
-}
-
 interface IKAIROToken is IERC20 {
     function burn(uint256 amount) external;
     function burnFrom(address account, uint256 amount) external;
@@ -24,7 +16,7 @@ interface IKAIROToken is IERC20 {
 }
 
 /**
- * @title AuxFund - "Mini-DEX" for KAIRO/USDT Trading (One-Way)
+ * @title LiquidityPool - "Mini-DEX" for KAIRO/USDT Trading (One-Way)
  * @dev Automated Market Maker with sophisticated pricing mechanism
  * Features:
  * - Dynamic pricing based on USDT balance and KAIRO supply
@@ -33,7 +25,7 @@ interface IKAIROToken is IERC20 {
  * - Only KAIRO → USDT swaps allowed (one-way DEX for deflationary tokenomics)
  * - Slippage protection on all operations
  */
-contract AuxFund is ReentrancyGuard, AccessControl {
+contract LiquidityPool is ReentrancyGuard, AccessControl {
     bytes32 public constant CORE_ROLE = keccak256("CORE_ROLE");
     bytes32 public constant REGISTRATION_ROLE = keccak256("REGISTRATION_ROLE");
     bytes32 public constant P2P_ROLE = keccak256("P2P_ROLE");
@@ -41,7 +33,6 @@ contract AuxFund is ReentrancyGuard, AccessControl {
     
     // Token interfaces
     IKAIROToken public immutable kairoToken;
-    ISLDToken public sldToken;  // For commutation reserves
     IERC20 public immutable usdtToken;
     
     // Deployer address - permanently stored and cannot swap KAIRO
@@ -105,10 +96,8 @@ contract AuxFund is ReentrancyGuard, AccessControl {
     event PriceSnapshotUpdated(uint256 indexed snapshotId, uint256 price, uint256 timestamp);
     event RegistrationFeeReceived(uint256 amount, uint256 timestamp);
     event ForfeitedTierBonusReceived(uint256 amount, uint256 timestamp);
-    event AuxFundInitialized(address kairoToken, address usdtToken, uint256 timestamp);
+    event LiquidityPoolInitialized(address kairoToken, address usdtToken, uint256 timestamp);
     event DeployerSwapBlocked(address indexed deployer, uint256 attemptedAmount, uint256 timestamp);
-    event SLDReceivedFromCommutation(uint256 amount, uint256 totalSLD, uint256 timestamp);
-    event SLDDistributedForCommutation(address indexed recipient, uint256 amount, uint256 timestamp);
     
     // Staking-specific events
     event StakingFundsReceived(uint256 amount, uint256 timestamp);
@@ -117,15 +106,12 @@ contract AuxFund is ReentrancyGuard, AccessControl {
     event PrematureExitPaid(address indexed recipient, uint256 amount, uint256 timestamp);
     event P2PFeeReceived(uint256 amount, uint256 timestamp);
     
-    // SLD reserve tracking for commutation
-    uint256 public totalSLDFromCommutation;
-    
     // Pool balances for AchieversPools (0 = Elite, 1 = Peak)
     mapping(uint256 => uint256) public poolBalances;
     
     constructor(address _kairoToken, address _usdtToken) {
-        require(_kairoToken != address(0), "AuxFund: Invalid KAIRO token");
-        require(_usdtToken != address(0), "AuxFund: Invalid USDT token");
+        require(_kairoToken != address(0), "LiquidityPool: Invalid KAIRO token");
+        require(_usdtToken != address(0), "LiquidityPool: Invalid USDT token");
         
         kairoToken = IKAIROToken(_kairoToken);
         usdtToken = IERC20(_usdtToken);
@@ -135,7 +121,7 @@ contract AuxFund is ReentrancyGuard, AccessControl {
         
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         
-        emit AuxFundInitialized(_kairoToken, _usdtToken, block.timestamp);
+        emit LiquidityPoolInitialized(_kairoToken, _usdtToken, block.timestamp);
     }
     
     /**
@@ -147,16 +133,7 @@ contract AuxFund is ReentrancyGuard, AccessControl {
     }
     
     /**
-     * @dev Set SLD token for commutation reserves
-     * @param _sldToken SLD token address
-     */
-    function setSLDToken(address _sldToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_sldToken != address(0), "AuxFund: Invalid SLD token");
-        sldToken = ISLDToken(_sldToken);
-    }
-    
-    /**
-     * @dev Get current KAIRO price based on AuxFund formula
+     * @dev Get current KAIRO price based on LiquidityPool formula
      * P = USDT_balance / (KAIRO_effectiveSupply + 5000 KAIRO social lock)
      * @return price Current KAIRO price in USDT (with 18 decimals precision)
      */
@@ -195,13 +172,13 @@ contract AuxFund is ReentrancyGuard, AccessControl {
         uint256 minUSDTOut,
         address recipient
     ) external nonReentrant returns (uint256 usdtOut) {
-        require(kairoAmount > 0, "AuxFund: Invalid KAIRO amount");
-        require(recipient != address(0), "AuxFund: Invalid recipient");
+        require(kairoAmount > 0, "LiquidityPool: Invalid KAIRO amount");
+        require(recipient != address(0), "LiquidityPool: Invalid recipient");
         
         // DEPLOYER PROTECTION: Deployer cannot swap any KAIRO tokens
         if (msg.sender == deployer) {
             emit DeployerSwapBlocked(deployer, kairoAmount, block.timestamp);
-            revert("AuxFund: Deployer cannot swap KAIRO tokens");
+            revert("LiquidityPool: Deployer cannot swap KAIRO tokens");
         }
         
         // Calculate USDT output before fees
@@ -213,11 +190,11 @@ contract AuxFund is ReentrancyGuard, AccessControl {
         usdtOut = grossUSDTOut - swapFee;
         
         // Slippage protection
-        require(usdtOut >= minUSDTOut, "AuxFund: Slippage too high");
+        require(usdtOut >= minUSDTOut, "LiquidityPool: Slippage too high");
         
         // Verify USDT availability
         uint256 usdtBalance = usdtToken.balanceOf(address(this));
-        require(usdtOut <= usdtBalance, "AuxFund: Insufficient USDT liquidity");
+        require(usdtOut <= usdtBalance, "LiquidityPool: Insufficient USDT liquidity");
         
         // Execute swap - transfer KAIRO from user and burn it
         kairoToken.transferFrom(msg.sender, address(this), kairoAmount);
@@ -253,10 +230,10 @@ contract AuxFund is ReentrancyGuard, AccessControl {
         address recipient
     ) external nonReentrant returns (uint256 kairoOut) {
         // ONE-WAY DEX: USDT → KAIRO swaps are permanently disabled
-        require(!USDT_TO_KAIRO_DISABLED, "AuxFund: USDT to KAIRO swaps disabled - One-way DEX only");
+        require(!USDT_TO_KAIRO_DISABLED, "LiquidityPool: USDT to KAIRO swaps disabled - One-way DEX only");
         
-        require(usdtAmount > 0, "AuxFund: Invalid USDT amount");
-        require(recipient != address(0), "AuxFund: Invalid recipient");
+        require(usdtAmount > 0, "LiquidityPool: Invalid USDT amount");
+        require(recipient != address(0), "LiquidityPool: Invalid recipient");
         
         // Calculate KAIRO output before fees
         uint256 currentPrice = getCurrentPrice();
@@ -267,7 +244,7 @@ contract AuxFund is ReentrancyGuard, AccessControl {
         kairoOut = grossKAIROOut - swapFee;
         
         // Slippage protection
-        require(kairoOut >= minKAIROOut, "AuxFund: Slippage too high");
+        require(kairoOut >= minKAIROOut, "LiquidityPool: Slippage too high");
         
         // Execute swap
         usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
@@ -299,7 +276,7 @@ contract AuxFund is ReentrancyGuard, AccessControl {
         uint256 maxSlippagePercent,
         bool kairoToUsdt
     ) external view returns (uint256 minOutput) {
-        require(maxSlippagePercent <= 100, "AuxFund: Invalid slippage percentage");
+        require(maxSlippagePercent <= 100, "LiquidityPool: Invalid slippage percentage");
         
         uint256 currentPrice = getCurrentPrice();
         uint256 grossOutput;
@@ -363,11 +340,11 @@ contract AuxFund is ReentrancyGuard, AccessControl {
      * @param amount Amount to withdraw
      */
     function withdrawUSDT(address to, uint256 amount) external onlyRole(CORE_ROLE) {
-        require(to != address(0), "AuxFund: Invalid recipient");
-        require(amount > 0, "AuxFund: Invalid amount");
+        require(to != address(0), "LiquidityPool: Invalid recipient");
+        require(amount > 0, "LiquidityPool: Invalid amount");
         
         uint256 balance = usdtToken.balanceOf(address(this));
-        require(amount <= balance, "AuxFund: Insufficient balance");
+        require(amount <= balance, "LiquidityPool: Insufficient balance");
         
         usdtToken.transfer(to, amount);
         emit USDTWithdrawn(to, amount, block.timestamp);
@@ -398,32 +375,32 @@ contract AuxFund is ReentrancyGuard, AccessControl {
     }
     
     /**
-     * @dev Distribute Team Gratuity payment from AuxFund
+     * @dev Distribute Team Gratuity payment from LiquidityPool
      * @param recipient Recipient address
      * @param amount Amount to pay
      */
     function distributeTeamGratuity(address recipient, uint256 amount) external onlyRole(CORE_ROLE) {
-        require(recipient != address(0), "AuxFund: Invalid recipient");
-        require(amount > 0, "AuxFund: Invalid amount");
+        require(recipient != address(0), "LiquidityPool: Invalid recipient");
+        require(amount > 0, "LiquidityPool: Invalid amount");
         
         uint256 balance = usdtToken.balanceOf(address(this));
-        require(amount <= balance, "AuxFund: Insufficient balance");
+        require(amount <= balance, "LiquidityPool: Insufficient balance");
         
         usdtToken.transfer(recipient, amount);
         emit TeamGratuityPaid(recipient, amount, block.timestamp);
     }
     
     /**
-     * @dev Distribute Support Purse payment from AuxFund
+     * @dev Distribute Support Purse payment from LiquidityPool
      * @param recipient Recipient address
      * @param amount Amount to pay
      */
     function distributeSupportPurse(address recipient, uint256 amount) external onlyRole(CORE_ROLE) {
-        require(recipient != address(0), "AuxFund: Invalid recipient");
-        require(amount > 0, "AuxFund: Invalid amount");
+        require(recipient != address(0), "LiquidityPool: Invalid recipient");
+        require(amount > 0, "LiquidityPool: Invalid amount");
         
         uint256 balance = usdtToken.balanceOf(address(this));
-        require(amount <= balance, "AuxFund: Insufficient balance");
+        require(amount <= balance, "LiquidityPool: Insufficient balance");
         
         usdtToken.transfer(recipient, amount);
         emit SupportPursePaid(recipient, amount, block.timestamp);
@@ -521,7 +498,7 @@ contract AuxFund is ReentrancyGuard, AccessControl {
      * @param account Address to grant role to
      */
     function grantCoreRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(account != address(0), "AuxFund: Invalid account");
+        require(account != address(0), "LiquidityPool: Invalid account");
         grantRole(CORE_ROLE, account);
     }
 
@@ -530,21 +507,21 @@ contract AuxFund is ReentrancyGuard, AccessControl {
      * @param account Address to grant role to
      */
     function grantRegistrationRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(account != address(0), "AuxFund: Invalid account");
+        require(account != address(0), "LiquidityPool: Invalid account");
         grantRole(REGISTRATION_ROLE, account);
     }
 
     /**
-     * @dev Grant P2P_ROLE to P2PEscrow contract
+     * @dev Grant P2P_ROLE to AtomicP2p contract
      * @param account Address to grant role to
      */
     function grantP2PRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(account != address(0), "AuxFund: Invalid account");
+        require(account != address(0), "LiquidityPool: Invalid account");
         grantRole(P2P_ROLE, account);
     }
 
     /**
-     * @dev Receive P2P trading fee (called by P2PEscrow)
+     * @dev Receive P2P trading fee (called by AtomicP2p)
      * @param amount Fee amount received
      */
     function receiveP2PFee(uint256 amount) external onlyRole(P2P_ROLE) {
@@ -556,7 +533,7 @@ contract AuxFund is ReentrancyGuard, AccessControl {
      * @param account Address to grant role to
      */
     function grantPoolRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(account != address(0), "AuxFund: Invalid account");
+        require(account != address(0), "LiquidityPool: Invalid account");
         grantRole(POOL_ROLE, account);
     }
 
@@ -578,12 +555,12 @@ contract AuxFund is ReentrancyGuard, AccessControl {
      * @param amount USDT amount to distribute
      */
     function distributePoolReward(address recipient, uint256 poolType, uint256 amount) external onlyRole(POOL_ROLE) {
-        require(recipient != address(0), "AuxFund: Invalid recipient");
-        require(amount > 0, "AuxFund: Invalid amount");
+        require(recipient != address(0), "LiquidityPool: Invalid recipient");
+        require(amount > 0, "LiquidityPool: Invalid amount");
         
         uint256 balance = usdtToken.balanceOf(address(this));
-        require(amount <= balance, "AuxFund: Insufficient balance for pool reward");
-        require(amount <= poolBalances[poolType], "AuxFund: Insufficient pool balance");
+        require(amount <= balance, "LiquidityPool: Insufficient balance for pool reward");
+        require(amount <= poolBalances[poolType], "LiquidityPool: Insufficient pool balance");
         
         poolBalances[poolType] -= amount;
         usdtToken.transfer(recipient, amount);
@@ -606,52 +583,13 @@ contract AuxFund is ReentrancyGuard, AccessControl {
      * @param amount USDT amount to pay
      */
     function distributePrematureExit(address recipient, uint256 amount) external onlyRole(CORE_ROLE) {
-        require(recipient != address(0), "AuxFund: Invalid recipient");
-        require(amount > 0, "AuxFund: Invalid amount");
+        require(recipient != address(0), "LiquidityPool: Invalid recipient");
+        require(amount > 0, "LiquidityPool: Invalid amount");
         
         uint256 balance = usdtToken.balanceOf(address(this));
-        require(amount <= balance, "AuxFund: Insufficient balance for premature exit");
+        require(amount <= balance, "LiquidityPool: Insufficient balance for premature exit");
         
         usdtToken.transfer(recipient, amount);
         emit PrematureExitPaid(recipient, amount, block.timestamp);
-    }
-
-    // ============ Commutation SLD Reserve Functions ============
-
-    /**
-     * @dev Track SLD received from SLD->KAIRO commutation (SLD is held here)
-     * Called by Commutation contract after receiving SLD
-     * @param amount SLD amount received
-     */
-    function receiveSLDFromCommutation(uint256 amount) external onlyRole(CORE_ROLE) {
-        totalSLDFromCommutation += amount;
-        emit SLDReceivedFromCommutation(amount, totalSLDFromCommutation, block.timestamp);
-    }
-
-    /**
-     * @dev Distribute SLD for KAIRO->SLD commutation
-     * SLD comes from reserve held in AuxFund from previous commutations
-     * @param recipient Recipient address
-     * @param amount SLD amount to distribute
-     */
-    function distributeSLDForCommutation(address recipient, uint256 amount) external onlyRole(CORE_ROLE) {
-        require(recipient != address(0), "AuxFund: Invalid recipient");
-        require(amount > 0, "AuxFund: Invalid amount");
-        require(address(sldToken) != address(0), "AuxFund: SLD token not set");
-        
-        uint256 sldBalance = sldToken.balanceOf(address(this));
-        require(amount <= sldBalance, "AuxFund: Insufficient SLD reserves for commutation");
-        
-        sldToken.transfer(recipient, amount);
-        emit SLDDistributedForCommutation(recipient, amount, block.timestamp);
-    }
-
-    /**
-     * @dev Get SLD reserve balance for commutation
-     * @return balance Current SLD balance available for KAIRO->SLD commutation
-     */
-    function getSLDReserveBalance() external view returns (uint256 balance) {
-        if (address(sldToken) == address(0)) return 0;
-        return sldToken.balanceOf(address(this));
     }
 }

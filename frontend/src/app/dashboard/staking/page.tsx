@@ -13,6 +13,7 @@ import {
   TrophyIcon,
 } from '@heroicons/react/24/outline';
 import { useStaking } from '@/hooks/useStaking';
+import { useReferral } from '@/hooks/useReferral';
 import { CONTRACTS, USDTABI } from '@/lib/contracts';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -43,11 +44,19 @@ export default function StakingPage() {
   const { stakes, totalStakeValue, isLoadingStakes, stake: doStake, compound, unstake, harvest, isWritePending, isConfirming, refetchStakes } = useStaking();
   const { subscribe } = useWS();
   const { addToast } = useToast();
+  const { referrer: storedReferrer } = useReferral();
 
   const [amount, setAmount] = useState('');
   const [referrer, setReferrer] = useState('');
   const [unstakeModalOpen, setUnstakeModalOpen] = useState(false);
   const [selectedStakeId, setSelectedStakeId] = useState<bigint | null>(null);
+
+  // Auto-fill referrer from localStorage on mount
+  useEffect(() => {
+    if (storedReferrer && !referrer) {
+      setReferrer(storedReferrer);
+    }
+  }, [storedReferrer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // USDT balance
   const { data: usdtBalance } = useReadContract({

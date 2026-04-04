@@ -266,7 +266,7 @@ export default function AdminPage() {
     { name: 'StakingManager', address: CONTRACTS.STAKING_MANAGER },
     { name: 'AffiliateDistributor', address: CONTRACTS.AFFILIATE_DISTRIBUTOR },
     { name: 'CoreMembershipSubscription', address: CONTRACTS.CMS },
-    { name: 'P2PEscrow', address: CONTRACTS.P2P_ESCROW },
+    { name: 'AtomicP2p', address: CONTRACTS.ATOMIC_P2P },
   ].filter((c) => !!c.address);
 
   return (

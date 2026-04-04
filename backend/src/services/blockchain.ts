@@ -4,9 +4,9 @@ import {
     StakingManagerABI,
     AffiliateDistributorABI,
     CoreMembershipSubscriptionABI,
-    P2PEscrowABI,
+    AtomicP2pABI,
     KAIROTokenABI,
-    AuxFundABI,
+    LiquidityPoolABI,
 } from '../abis';
 
 // ============ Providers ============
@@ -71,7 +71,7 @@ export function getSigner(): Wallet | null {
  */
 export function areContractsConfigured(): boolean {
     const c = config.contracts;
-    return !!(c.kairoToken && c.auxFund && c.stakingManager && c.affiliateDistributor && c.cms && c.p2pEscrow);
+    return !!(c.kairoToken && c.liquidityPool && c.stakingManager && c.affiliateDistributor && c.cms && c.atomicP2p);
 }
 
 export function getStakingManager(useSigner = false): Contract | null {
@@ -92,10 +92,10 @@ export function getCMS(useSigner = false): Contract | null {
     return new Contract(config.contracts.cms, CoreMembershipSubscriptionABI, provider);
 }
 
-export function getP2PEscrow(useSigner = false): Contract | null {
-    if (!config.contracts.p2pEscrow) return null;
+export function getAtomicP2p(useSigner = false): Contract | null {
+    if (!config.contracts.atomicP2p) return null;
     const provider = useSigner && signer ? signer : getHttpProvider();
-    return new Contract(config.contracts.p2pEscrow, P2PEscrowABI, provider);
+    return new Contract(config.contracts.atomicP2p, AtomicP2pABI, provider);
 }
 
 export function getKAIROToken(): Contract | null {
@@ -103,15 +103,15 @@ export function getKAIROToken(): Contract | null {
     return new Contract(config.contracts.kairoToken, KAIROTokenABI, getHttpProvider());
 }
 
-export function getAuxFund(): Contract | null {
-    if (!config.contracts.auxFund) return null;
-    return new Contract(config.contracts.auxFund, AuxFundABI, getHttpProvider());
+export function getLiquidityPool(): Contract | null {
+    if (!config.contracts.liquidityPool) return null;
+    return new Contract(config.contracts.liquidityPool, LiquidityPoolABI, getHttpProvider());
 }
 
 /**
  * Get contracts connected to the WebSocket provider for event listening
  */
-export function getWsContracts(): { stakingManager: Contract; affiliateDistributor: Contract; cms: Contract; p2pEscrow: Contract } | null {
+export function getWsContracts(): { stakingManager: Contract; affiliateDistributor: Contract; cms: Contract; atomicP2p: Contract } | null {
     if (!areContractsConfigured()) return null;
     const provider = wsProvider || getHttpProvider();
 
@@ -119,7 +119,7 @@ export function getWsContracts(): { stakingManager: Contract; affiliateDistribut
         stakingManager: new Contract(config.contracts.stakingManager, StakingManagerABI, provider),
         affiliateDistributor: new Contract(config.contracts.affiliateDistributor, AffiliateDistributorABI, provider),
         cms: new Contract(config.contracts.cms, CoreMembershipSubscriptionABI, provider),
-        p2pEscrow: new Contract(config.contracts.p2pEscrow, P2PEscrowABI, provider),
+        atomicP2p: new Contract(config.contracts.atomicP2p, AtomicP2pABI, provider),
     };
 }
 
@@ -131,18 +131,18 @@ export async function getCurrentBlock(): Promise<number> {
 }
 
 /**
- * Get live KAIRO price from AuxFund
+ * Get live KAIRO price from LiquidityPool
  */
 export async function getLivePrice(): Promise<bigint> {
-    const auxFund = getAuxFund();
-    if (!auxFund) return BigInt(0);
+    const liquidityPool = getLiquidityPool();
+    if (!liquidityPool) return BigInt(0);
     try {
-        return await auxFund.getCurrentPrice();
+        return await liquidityPool.getCurrentPrice();
     } catch {
         try {
-            return await auxFund.getLivePrice();
+            return await liquidityPool.getLivePrice();
         } catch {
-            console.warn('Failed to fetch live price from AuxFund');
+            console.warn('Failed to fetch live price from LiquidityPool');
             return BigInt(0);
         }
     }

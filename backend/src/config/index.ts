@@ -12,11 +12,11 @@ interface Config {
     indexerPrivateKey: string;
     contracts: {
         kairoToken: string;
-        auxFund: string;
+        liquidityPool: string;
         stakingManager: string;
         affiliateDistributor: string;
         cms: string;
-        p2pEscrow: string;
+        atomicP2p: string;
     };
     systemWallet: string;
 }
@@ -40,11 +40,11 @@ export const config: Config = {
     indexerPrivateKey: process.env.INDEXER_PRIVATE_KEY || '',
     contracts: {
         kairoToken: process.env.KAIRO_TOKEN_ADDRESS || '',
-        auxFund: process.env.AUXFUND_ADDRESS || '',
+        liquidityPool: process.env.LIQUIDITY_POOL_ADDRESS || '',
         stakingManager: process.env.STAKING_MANAGER_ADDRESS || '',
         affiliateDistributor: process.env.AFFILIATE_DISTRIBUTOR_ADDRESS || '',
         cms: process.env.CMS_ADDRESS || '',
-        p2pEscrow: process.env.P2P_ESCROW_ADDRESS || '',
+        atomicP2p: process.env.ATOMIC_P2P_ADDRESS || '',
     },
     systemWallet: process.env.SYSTEM_WALLET || '',
 };

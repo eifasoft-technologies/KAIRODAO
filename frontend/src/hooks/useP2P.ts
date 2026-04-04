@@ -2,7 +2,7 @@
 
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { useAccount } from 'wagmi';
-import { CONTRACTS, P2PEscrowABI } from '@/lib/contracts';
+import { CONTRACTS, AtomicP2pABI } from '@/lib/contracts';
 
 export function useP2P() {
   const { address } = useAccount();
@@ -11,46 +11,46 @@ export function useP2P() {
 
   // Read order book stats
   const { data: orderBookStats, refetch: refetchStats } = useReadContract({
-    address: CONTRACTS.P2P_ESCROW,
-    abi: P2PEscrowABI,
+    address: CONTRACTS.ATOMIC_P2P,
+    abi: AtomicP2pABI,
     functionName: 'getOrderBookStats',
     query: {
-      enabled: !!CONTRACTS.P2P_ESCROW,
+      enabled: !!CONTRACTS.ATOMIC_P2P,
       refetchInterval: 10_000,
     },
   });
 
   // Read current price
   const { data: currentPrice } = useReadContract({
-    address: CONTRACTS.P2P_ESCROW,
-    abi: P2PEscrowABI,
+    address: CONTRACTS.ATOMIC_P2P,
+    abi: AtomicP2pABI,
     functionName: 'getCurrentPrice',
     query: {
-      enabled: !!CONTRACTS.P2P_ESCROW,
+      enabled: !!CONTRACTS.ATOMIC_P2P,
       refetchInterval: 15_000,
     },
   });
 
   // Read active buy orders
   const { data: activeBuyOrders, refetch: refetchBuyOrders } = useReadContract({
-    address: CONTRACTS.P2P_ESCROW,
-    abi: P2PEscrowABI,
+    address: CONTRACTS.ATOMIC_P2P,
+    abi: AtomicP2pABI,
     functionName: 'getActiveBuyOrders',
     args: [BigInt(0), BigInt(20)],
     query: {
-      enabled: !!CONTRACTS.P2P_ESCROW,
+      enabled: !!CONTRACTS.ATOMIC_P2P,
       refetchInterval: 10_000,
     },
   });
 
   // Read active sell orders
   const { data: activeSellOrders, refetch: refetchSellOrders } = useReadContract({
-    address: CONTRACTS.P2P_ESCROW,
-    abi: P2PEscrowABI,
+    address: CONTRACTS.ATOMIC_P2P,
+    abi: AtomicP2pABI,
     functionName: 'getActiveSellOrders',
     args: [BigInt(0), BigInt(20)],
     query: {
-      enabled: !!CONTRACTS.P2P_ESCROW,
+      enabled: !!CONTRACTS.ATOMIC_P2P,
       refetchInterval: 10_000,
     },
   });
@@ -58,8 +58,8 @@ export function useP2P() {
   // Write operations
   const createBuyOrder = (usdtAmount: bigint) => {
     writeContract({
-      address: CONTRACTS.P2P_ESCROW,
-      abi: P2PEscrowABI,
+      address: CONTRACTS.ATOMIC_P2P,
+      abi: AtomicP2pABI,
       functionName: 'createBuyOrder',
       args: [usdtAmount],
     });
@@ -67,8 +67,8 @@ export function useP2P() {
 
   const createSellOrder = (kairoAmount: bigint) => {
     writeContract({
-      address: CONTRACTS.P2P_ESCROW,
-      abi: P2PEscrowABI,
+      address: CONTRACTS.ATOMIC_P2P,
+      abi: AtomicP2pABI,
       functionName: 'createSellOrder',
       args: [kairoAmount],
     });
@@ -76,8 +76,8 @@ export function useP2P() {
 
   const cancelBuyOrder = (orderId: bigint) => {
     writeContract({
-      address: CONTRACTS.P2P_ESCROW,
-      abi: P2PEscrowABI,
+      address: CONTRACTS.ATOMIC_P2P,
+      abi: AtomicP2pABI,
       functionName: 'cancelBuyOrder',
       args: [orderId],
     });
@@ -85,8 +85,8 @@ export function useP2P() {
 
   const cancelSellOrder = (orderId: bigint) => {
     writeContract({
-      address: CONTRACTS.P2P_ESCROW,
-      abi: P2PEscrowABI,
+      address: CONTRACTS.ATOMIC_P2P,
+      abi: AtomicP2pABI,
       functionName: 'cancelSellOrder',
       args: [orderId],
     });
@@ -94,8 +94,8 @@ export function useP2P() {
 
   const executeTrade = (buyOrderId: bigint, sellOrderId: bigint, kairoFillAmount: bigint) => {
     writeContract({
-      address: CONTRACTS.P2P_ESCROW,
-      abi: P2PEscrowABI,
+      address: CONTRACTS.ATOMIC_P2P,
+      abi: AtomicP2pABI,
       functionName: 'executeTrade',
       args: [buyOrderId, sellOrderId, kairoFillAmount],
     });

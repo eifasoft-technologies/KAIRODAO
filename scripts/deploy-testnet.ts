@@ -41,38 +41,38 @@ async function main() {
     const kairoAddress = await kairoToken.getAddress();
     console.log("  KAIROToken:", kairoAddress);
 
-    // 3. AuxFund - constructor(address _kairoToken, address _usdtToken)
-    console.log("[3/8] Deploying AuxFund...");
-    const AuxFund = await ethers.getContractFactory("AuxFund");
-    const auxFund = await AuxFund.deploy(kairoAddress, usdtAddress);
-    await auxFund.waitForDeployment();
-    const auxFundAddress = await auxFund.getAddress();
-    console.log("  AuxFund:", auxFundAddress);
+    // 3. LiquidityPool - constructor(address _kairoToken, address _usdtToken)
+    console.log("[3/8] Deploying LiquidityPool...");
+    const LiquidityPool = await ethers.getContractFactory("LiquidityPool");
+    const liquidityPool = await LiquidityPool.deploy(kairoAddress, usdtAddress);
+    await liquidityPool.waitForDeployment();
+    const liquidityPoolAddress = await liquidityPool.getAddress();
+    console.log("  LiquidityPool:", liquidityPoolAddress);
 
     // 4. Configure KAIROToken
     console.log("[4/8] Configuring KAIROToken...");
-    let tx = await kairoToken.setLiquidityPool(auxFundAddress);
+    let tx = await kairoToken.setLiquidityPool(liquidityPoolAddress);
     await tx.wait();
-    console.log("  LiquidityPool -> AuxFund");
+    console.log("  LiquidityPool -> LiquidityPool");
     tx = await kairoToken.mintInitialSupply();
     await tx.wait();
-    console.log("  Social lock: 10,000 KAIRO minted to AuxFund");
+    console.log("  Social lock: 10,000 KAIRO minted to LiquidityPool");
 
-    // 5. AffiliateDistributor - constructor(address _kairoToken, address _auxFund, address _admin, address _systemWallet)
+    // 5. AffiliateDistributor - constructor(address _kairoToken, address _liquidityPool, address _admin, address _systemWallet)
     console.log("[5/8] Deploying AffiliateDistributor...");
     const AffiliateDistributor = await ethers.getContractFactory("AffiliateDistributor");
     const affiliateDistributor = await AffiliateDistributor.deploy(
-        kairoAddress, auxFundAddress, deployer.address, systemWallet
+        kairoAddress, liquidityPoolAddress, deployer.address, systemWallet
     );
     await affiliateDistributor.waitForDeployment();
     const affiliateAddress = await affiliateDistributor.getAddress();
     console.log("  AffiliateDistributor:", affiliateAddress);
 
-    // 6. StakingManager - constructor(address _kairoToken, address _auxFund, address _usdt, address _systemWallet, address _admin)
+    // 6. StakingManager - constructor(address _kairoToken, address _liquidityPool, address _usdt, address _systemWallet, address _admin)
     console.log("[6/8] Deploying StakingManager...");
     const StakingManager = await ethers.getContractFactory("StakingManager");
     const stakingManager = await StakingManager.deploy(
-        kairoAddress, auxFundAddress, usdtAddress, systemWallet, deployer.address
+        kairoAddress, liquidityPoolAddress, usdtAddress, systemWallet, deployer.address
     );
     await stakingManager.waitForDeployment();
     const stakingAddress = await stakingManager.getAddress();
@@ -89,20 +89,20 @@ async function main() {
     console.log("[7/8] Deploying CoreMembershipSubscription...");
     const CMS = await ethers.getContractFactory("CoreMembershipSubscription");
     const cms = await CMS.deploy(
-        kairoAddress, usdtAddress, auxFundAddress,
+        kairoAddress, usdtAddress, liquidityPoolAddress,
         stakingAddress, affiliateAddress, systemWallet, deployer.address
     );
     await cms.waitForDeployment();
     const cmsAddress = await cms.getAddress();
     console.log("  CoreMembershipSubscription:", cmsAddress);
 
-    // 8. P2PEscrow - constructor(address _kairoToken, address _usdtToken, address _auxFund)
-    console.log("[8/8] Deploying P2PEscrow...");
-    const P2PEscrow = await ethers.getContractFactory("P2PEscrow");
-    const p2pEscrow = await P2PEscrow.deploy(kairoAddress, usdtAddress, auxFundAddress);
-    await p2pEscrow.waitForDeployment();
-    const p2pAddress = await p2pEscrow.getAddress();
-    console.log("  P2PEscrow:", p2pAddress);
+    // 8. AtomicP2p - constructor(address _kairoToken, address _usdtToken, address _liquidityPool)
+    console.log("[8/8] Deploying AtomicP2p...");
+    const AtomicP2p = await ethers.getContractFactory("AtomicP2p");
+    const atomicP2p = await AtomicP2p.deploy(kairoAddress, usdtAddress, liquidityPoolAddress);
+    await atomicP2p.waitForDeployment();
+    const p2pAddress = await atomicP2p.getAddress();
+    console.log("  AtomicP2p:", p2pAddress);
     console.log("");
 
     // ============================================================
@@ -127,13 +127,13 @@ async function main() {
     await tx.wait();
     console.log("  KAIROToken MINTER_ROLE -> CMS");
 
-    tx = await kairoToken.grantRole(BURNER_ROLE, auxFundAddress);
+    tx = await kairoToken.grantRole(BURNER_ROLE, liquidityPoolAddress);
     await tx.wait();
-    console.log("  KAIROToken BURNER_ROLE -> AuxFund");
+    console.log("  KAIROToken BURNER_ROLE -> LiquidityPool");
 
     tx = await kairoToken.grantRole(BURNER_ROLE, p2pAddress);
     await tx.wait();
-    console.log("  KAIROToken BURNER_ROLE -> P2PEscrow");
+    console.log("  KAIROToken BURNER_ROLE -> AtomicP2p");
 
     // AffiliateDistributor roles
     const RANK_UPDATER_ROLE = await affiliateDistributor.RANK_UPDATER_ROLE();
@@ -147,18 +147,18 @@ async function main() {
     await tx.wait();
     console.log("  StakingManager COMPOUNDER_ROLE -> deployer");
 
-    // AuxFund roles
-    tx = await auxFund.grantCoreRole(stakingAddress);
+    // LiquidityPool roles
+    tx = await liquidityPool.grantCoreRole(stakingAddress);
     await tx.wait();
-    console.log("  AuxFund CORE_ROLE -> StakingManager");
+    console.log("  LiquidityPool CORE_ROLE -> StakingManager");
 
-    tx = await auxFund.grantCoreRole(cmsAddress);
+    tx = await liquidityPool.grantCoreRole(cmsAddress);
     await tx.wait();
-    console.log("  AuxFund CORE_ROLE -> CMS");
+    console.log("  LiquidityPool CORE_ROLE -> CMS");
 
-    tx = await auxFund.grantP2PRole(p2pAddress);
+    tx = await liquidityPool.grantP2PRole(p2pAddress);
     await tx.wait();
-    console.log("  AuxFund P2P_ROLE -> P2PEscrow");
+    console.log("  LiquidityPool P2P_ROLE -> AtomicP2p");
     console.log("");
 
     // ============================================================
@@ -172,13 +172,13 @@ async function main() {
     await tx.wait();
     console.log("  Minted 100,000 extra USDT to deployer");
 
-    // Seed AuxFund with 10,000 USDT initial liquidity
+    // Seed LiquidityPool with 10,000 USDT initial liquidity
     const INITIAL_LIQUIDITY = ethers.parseEther("10000");
-    tx = await mockUSDT.transfer(auxFundAddress, INITIAL_LIQUIDITY);
+    tx = await mockUSDT.transfer(liquidityPoolAddress, INITIAL_LIQUIDITY);
     await tx.wait();
-    console.log("  Transferred 10,000 USDT to AuxFund for liquidity");
+    console.log("  Transferred 10,000 USDT to LiquidityPool for liquidity");
 
-    const initialPrice = await auxFund.getLivePrice();
+    const initialPrice = await liquidityPool.getLivePrice();
     console.log("  Initial KAIRO price:", ethers.formatEther(initialPrice), "USDT");
 
     // If testUser signer exists (hardhat network has multiple), set up a test user
@@ -216,7 +216,7 @@ async function main() {
 
             // Test: CMS subscription
             const subCost = ethers.parseEther("10"); // 10 USDT per sub
-            tx = await mockUSDT.connect(testUser).approve(auxFundAddress, subCost);
+            tx = await mockUSDT.connect(testUser).approve(liquidityPoolAddress, subCost);
             await tx.wait();
             tx = await cms.connect(testUser).subscribe(1, ethers.ZeroAddress);
             await tx.wait();
@@ -226,7 +226,7 @@ async function main() {
             console.log("  [TEST] Subscription count:", subCount.toString());
 
             // Check updated price after liquidity changes
-            const updatedPrice = await auxFund.getLivePrice();
+            const updatedPrice = await liquidityPool.getLivePrice();
             console.log("  [TEST] Updated KAIRO price:", ethers.formatEther(updatedPrice), "USDT");
 
         } catch (error: any) {
@@ -245,11 +245,11 @@ async function main() {
     console.log("Contract Addresses (copy for .env / frontend config):");
     console.log(`  MOCK_USDT_ADDRESS=${usdtAddress}`);
     console.log(`  KAIRO_TOKEN_ADDRESS=${kairoAddress}`);
-    console.log(`  AUX_FUND_ADDRESS=${auxFundAddress}`);
+    console.log(`  LIQUIDITY_POOL_ADDRESS=${liquidityPoolAddress}`);
     console.log(`  AFFILIATE_DISTRIBUTOR_ADDRESS=${affiliateAddress}`);
     console.log(`  STAKING_MANAGER_ADDRESS=${stakingAddress}`);
     console.log(`  CMS_ADDRESS=${cmsAddress}`);
-    console.log(`  P2P_ESCROW_ADDRESS=${p2pAddress}`);
+    console.log(`  ATOMIC_P2P_ADDRESS=${p2pAddress}`);
     console.log(`  SYSTEM_WALLET=${systemWallet}`);
     console.log("");
     console.log("Next steps:");

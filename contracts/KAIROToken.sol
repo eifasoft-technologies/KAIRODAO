@@ -24,7 +24,7 @@ interface ILiquidityPool {
  * - AccessControl (role-based access: MINTER_ROLE, BURNER_ROLE)
  * - Social lock: 10,000 KAIRO minted to LP and locked forever
  * - Price-aware minting via LiquidityPool oracle
- * - Tracks total burned supply and effective supply for AuxFund compatibility
+ * - Tracks total burned supply and effective supply for LiquidityPool compatibility
  */
 contract KAIROToken is ERC20, ERC20Permit, ERC20Burnable, AccessControl {
     // ============ Roles ============
@@ -36,7 +36,7 @@ contract KAIROToken is ERC20, ERC20Permit, ERC20Burnable, AccessControl {
     uint256 public constant SOCIAL_LOCK = 10_000 * 10 ** 18; // 10,000 KAIRO locked forever
     bool public socialLockApplied;
 
-    // Track total burned tokens for AuxFund/P2PEscrow compatibility
+    // Track total burned tokens for LiquidityPool/AtomicP2p compatibility
     uint256 private _totalBurned;
 
     // ============ Events ============
@@ -140,7 +140,7 @@ contract KAIROToken is ERC20, ERC20Permit, ERC20Burnable, AccessControl {
         super.burnFrom(account, amount);
     }
 
-    // ============ View Functions (ISLDTToken Compatibility) ============
+    // ============ View Functions ============
 
     /**
      * @dev Returns total amount of KAIRO tokens that have been burned
@@ -160,7 +160,7 @@ contract KAIROToken is ERC20, ERC20Permit, ERC20Burnable, AccessControl {
 
     /**
      * @dev Returns effective circulating supply: totalSupply - socialLock
-     *      Used by AuxFund for price calculations
+     *      Used by LiquidityPool for price calculations
      * @return Effective supply
      */
     function getEffectiveSupply() external view returns (uint256) {
