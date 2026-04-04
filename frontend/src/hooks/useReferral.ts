@@ -3,7 +3,6 @@
 import { useEffect, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import { isAddress } from 'viem';
-import { useSearchParams } from 'next/navigation';
 
 const STORAGE_KEY = 'kairo_referrer';
 const REFERRAL_BASE_URL = 'https://kairodao.com?ref=';
@@ -17,18 +16,19 @@ const REFERRAL_BASE_URL = 'https://kairodao.com?ref=';
  */
 export function useReferral() {
   const { address } = useAccount();
-  const searchParams = useSearchParams();
 
   // On mount, check URL for ref param and persist
   useEffect(() => {
-    const refParam = searchParams.get('ref');
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const refParam = params.get('ref');
     if (refParam && isAddress(refParam)) {
       // Don't store self-referral
       if (!address || refParam.toLowerCase() !== address.toLowerCase()) {
         localStorage.setItem(STORAGE_KEY, refParam);
       }
     }
-  }, [searchParams, address]);
+  }, [address]);
 
   const referrer = useMemo(() => {
     if (typeof window === 'undefined') return null;
