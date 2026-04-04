@@ -85,6 +85,7 @@ router.get('/global/stats', async (_req: Request, res: Response) => {
             // Token supply info
             try {
                 const kairo = getKAIROToken();
+                if (!kairo) throw new Error('Contracts not configured');
                 const [supply, burned, effective, lock] = await Promise.all([
                     kairo.totalSupply(),
                     kairo.getTotalBurned().catch(() => BigInt(0)),
@@ -102,6 +103,7 @@ router.get('/global/stats', async (_req: Request, res: Response) => {
             // CMS info
             try {
                 const cmsContract = getCMS();
+                if (!cmsContract) throw new Error('Contracts not configured');
                 const [deadline, remaining] = await Promise.all([
                     cmsContract.deadline().catch(() => BigInt(0)),
                     cmsContract.getRemainingSubscriptions().catch(() => BigInt(0)),

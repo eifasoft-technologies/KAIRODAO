@@ -100,6 +100,7 @@ router.get('/user/:address/dashboard', validateAddressParam, async (req: Request
 
         try {
             const affiliate = getAffiliateDistributor();
+            if (!affiliate) throw new Error('Contracts not configured');
             const allIncome = await affiliate.getAllIncome(walletAddress);
             // allIncome typically returns [direct, team, rank, qualifierWeekly, qualifierMonthly]
             if (allIncome && allIncome.length >= 5) {
@@ -126,6 +127,7 @@ router.get('/user/:address/dashboard', validateAddressParam, async (req: Request
         let cmsExcessToDelete = '0';
         try {
             const cmsContract = getCMS();
+            if (!cmsContract) throw new Error('Contracts not configured');
             const [loyalty, leadership, total] = await cmsContract.getClaimableRewards(walletAddress);
             cmsClaimable = ethers.formatEther(total);
             cmsLoyalty = ethers.formatEther(loyalty);

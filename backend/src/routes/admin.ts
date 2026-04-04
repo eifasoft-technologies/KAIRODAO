@@ -91,6 +91,7 @@ router.post('/admin/calculate-rank', async (req: Request, res: Response) => {
             if (result.newRank !== result.previousRank) {
                 try {
                     const affiliate = getAffiliateDistributor(true);
+                    if (!affiliate) throw new Error('Contracts not configured');
                     const amountWei = await affiliate.calculateRankSalary(address.toLowerCase());
                     if (amountWei > 0n) {
                         const tx = await affiliate.updateRankDividend(address.toLowerCase(), amountWei);

@@ -580,7 +580,7 @@ async function processHistoricalEvents(
 
 // ============ Real-time Listener Setup ============
 
-function setupRealtimeListeners(contracts: ReturnType<typeof getWsContracts>): void {
+function setupRealtimeListeners(contracts: NonNullable<ReturnType<typeof getWsContracts>>): void {
     // StakingManager
     contracts.stakingManager.on('StakeCreated', async (user: string, stakeId: bigint, amount: bigint, tier: number, event: any) => {
         const txHash = event.log?.transactionHash || '';
