@@ -224,7 +224,7 @@ function createQualifierWeeklyWorker(): Worker {
                     `SELECT COALESCE(SUM(amount_usd), 0) AS total_profits
                      FROM income_ledger
                      WHERE income_type IN ('TEAM', 'DIRECT', 'STAKING_HARVEST')
-                       AND created_at >= NOW() - INTERVAL '3 hours'` -- TESTING: shortened from '7 days'
+                       AND created_at >= NOW() - INTERVAL '3 hours'` // TESTING: shortened from '7 days'
                 );
 
                 const totalProfits = parseFloat(profitResult.rows[0]?.total_profits || '0');
@@ -301,7 +301,7 @@ function createQualifierMonthlyWorker(): Worker {
                     `SELECT COALESCE(SUM(amount_usd), 0) AS total_profits
                      FROM income_ledger
                      WHERE income_type IN ('TEAM', 'DIRECT', 'STAKING_HARVEST')
-                       AND created_at >= NOW() - INTERVAL '5 hours'` -- TESTING: shortened from '30 days'
+                       AND created_at >= NOW() - INTERVAL '5 hours'` // TESTING: shortened from '30 days'
                 );
 
                 const totalProfits = parseFloat(profitResult.rows[0]?.total_profits || '0');
