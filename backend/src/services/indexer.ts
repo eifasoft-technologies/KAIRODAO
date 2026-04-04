@@ -688,6 +688,11 @@ export async function startIndexer(): Promise<void> {
     console.log('Starting KAIRO event indexer...');
 
     const contracts = getWsContracts();
+    if (!contracts) {
+        console.warn('[Indexer] Contract addresses not configured. Indexer disabled - will start when contracts are deployed.');
+        return;
+    }
+
     const currentBlock = await getCurrentBlock();
     const provider = getHttpProvider();
 

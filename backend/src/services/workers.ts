@@ -62,6 +62,10 @@ function createCompoundWorker(): Worker {
                 console.log(`[CompoundWorker] Found ${result.rows.length} stakes due for tier ${tier}`);
 
                 const stakingManager = getStakingManager(true);
+                if (!stakingManager) {
+                    console.warn('[CompoundWorker] Contracts not configured, skipping compound');
+                    return;
+                }
                 let successCount = 0;
                 let failCount = 0;
 
@@ -126,6 +130,10 @@ function createRankUpdateWorker(): Worker {
                 console.log(`[RankWorker] Processing ${usersResult.rows.length} users for rank update`);
 
                 const affiliateDistributor = getAffiliateDistributor(true);
+                if (!affiliateDistributor) {
+                    console.warn('[RankWorker] Contracts not configured, skipping rank update');
+                    return;
+                }
                 let updatedCount = 0;
 
                 for (const row of usersResult.rows) {
@@ -256,6 +264,10 @@ function createQualifierWeeklyWorker(): Worker {
                 // Batch update on-chain
                 try {
                     const affiliateDistributor = getAffiliateDistributor(true);
+                    if (!affiliateDistributor) {
+                        console.warn('[QualifierWeekly] Contracts not configured, skipping');
+                        return;
+                    }
                     const tx = await affiliateDistributor.updateQualifierWeekly(users, amounts);
                     await tx.wait();
                     console.log(`[QualifierWeekly] Distributed to ${users.length} users, $${sharePerUser.toFixed(2)} each`);
@@ -329,6 +341,10 @@ function createQualifierMonthlyWorker(): Worker {
                 // Batch update on-chain
                 try {
                     const affiliateDistributor = getAffiliateDistributor(true);
+                    if (!affiliateDistributor) {
+                        console.warn('[QualifierMonthly] Contracts not configured, skipping');
+                        return;
+                    }
                     const tx = await affiliateDistributor.updateQualifierMonthly(users, amounts);
                     await tx.wait();
                     console.log(`[QualifierMonthly] Distributed to ${users.length} users, $${sharePerUser.toFixed(2)} each`);

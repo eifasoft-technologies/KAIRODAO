@@ -64,38 +64,53 @@ export function getSigner(): Wallet | null {
 
 // ============ Contract Instances ============
 
-export function getStakingManager(useSigner = false): Contract {
+/**
+ * Check if all required contract addresses are configured
+ */
+export function areContractsConfigured(): boolean {
+    const c = config.contracts;
+    return !!(c.kairoToken && c.auxFund && c.stakingManager && c.affiliateDistributor && c.cms && c.p2pEscrow);
+}
+
+export function getStakingManager(useSigner = false): Contract | null {
+    if (!config.contracts.stakingManager) return null;
     const provider = useSigner && signer ? signer : getHttpProvider();
     return new Contract(config.contracts.stakingManager, StakingManagerABI, provider);
 }
 
-export function getAffiliateDistributor(useSigner = false): Contract {
+export function getAffiliateDistributor(useSigner = false): Contract | null {
+    if (!config.contracts.affiliateDistributor) return null;
     const provider = useSigner && signer ? signer : getHttpProvider();
     return new Contract(config.contracts.affiliateDistributor, AffiliateDistributorABI, provider);
 }
 
-export function getCMS(useSigner = false): Contract {
+export function getCMS(useSigner = false): Contract | null {
+    if (!config.contracts.cms) return null;
     const provider = useSigner && signer ? signer : getHttpProvider();
     return new Contract(config.contracts.cms, CoreMembershipSubscriptionABI, provider);
 }
 
-export function getP2PEscrow(useSigner = false): Contract {
+export function getP2PEscrow(useSigner = false): Contract | null {
+    if (!config.contracts.p2pEscrow) return null;
     const provider = useSigner && signer ? signer : getHttpProvider();
     return new Contract(config.contracts.p2pEscrow, P2PEscrowABI, provider);
 }
 
-export function getKAIROToken(): Contract {
+export function getKAIROToken(): Contract | null {
+    if (!config.contracts.kairoToken) return null;
     return new Contract(config.contracts.kairoToken, KAIROTokenABI, getHttpProvider());
 }
 
-export function getAuxFund(): Contract {
+export function getAuxFund(): Contract | null {
+    if (!config.contracts.auxFund) return null;
     return new Contract(config.contracts.auxFund, AuxFundABI, getHttpProvider());
 }
 
 /**
  * Get contracts connected to the WebSocket provider for event listening
  */
-export function getWsContracts() {
+export function getWsContracts(): { stakingManager: Contract; affiliateDistributor: Contract; cms: Contract; p2pEscrow: Contract } | null {
+    if (!areContractsConfigured()) return null;
     const provider = wsProvider || getHttpProvider();
 
     return {
@@ -118,6 +133,7 @@ export async function getCurrentBlock(): Promise<number> {
  */
 export async function getLivePrice(): Promise<bigint> {
     const auxFund = getAuxFund();
+    if (!auxFund) return BigInt(0);
     try {
         return await auxFund.getCurrentPrice();
     } catch {

@@ -7,7 +7,7 @@ import { createServer } from 'http';
 import { config } from './config';
 import { pool } from './db/connection';
 import { initWebSocket } from './services/websocket';
-import { initProviders } from './services/blockchain';
+import { initProviders, areContractsConfigured } from './services/blockchain';
 import userRoutes from './routes/user';
 import globalRoutes from './routes/global';
 import p2pRoutes from './routes/p2p';
@@ -74,6 +74,12 @@ server.listen(config.port, async () => {
     console.log(`Environment: ${config.nodeEnv}`);
     console.log(`Health check: http://localhost:${config.port}/health`);
     console.log(`WebSocket: ws://localhost:${config.port}/ws`);
+
+    if (!areContractsConfigured()) {
+        console.warn('⚠ Contract addresses not configured. Running in degraded mode (API only, no blockchain features).');
+        console.warn('  Set contract addresses in environment variables and restart to enable full functionality.');
+        return;
+    }
 
     // Initialize BullMQ scheduled jobs
     await initQueues().catch((err) => console.error('Failed to initialize queues:', err));
