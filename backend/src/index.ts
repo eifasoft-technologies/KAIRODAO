@@ -19,6 +19,16 @@ import { errorHandler } from './utils/validation';
 
 const app = express();
 
+// Safety net: prevent WebSocket connection errors from crashing the process
+process.on('uncaughtException', (err) => {
+    if (err.message?.includes('Unexpected server response') || err.message?.includes('WebSocket')) {
+        console.error('WebSocket error caught (non-fatal):', err.message);
+    } else {
+        console.error('Uncaught exception:', err);
+        process.exit(1);
+    }
+});
+
 // Middleware
 app.use(cors());
 app.use(helmet());

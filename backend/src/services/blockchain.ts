@@ -21,12 +21,14 @@ let signer: Wallet | null = null;
 export function initProviders(): void {
     httpProvider = new JsonRpcProvider(config.rpcUrl, config.chainId);
 
-    if (config.rpcWsUrl) {
+    // Only initialize WsProvider if contracts are configured (indexer needs it)
+    if (config.rpcWsUrl && areContractsConfigured()) {
         try {
             wsProvider = new WebSocketProvider(config.rpcWsUrl, config.chainId);
             console.log('WebSocket provider initialized');
         } catch (err) {
             console.warn('WebSocket provider failed to initialize, falling back to HTTP polling:', err);
+            wsProvider = null;
         }
     }
 
