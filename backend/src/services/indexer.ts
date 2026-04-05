@@ -3,6 +3,14 @@ import { query, getClient } from '../db/connection';
 import { getWsContracts, getCurrentBlock, getHttpProvider } from './blockchain';
 import { broadcastCompoundEvent, broadcastOrderBookUpdate } from './websocket';
 import { buildReferralTree } from '../utils/referral-tree';
+import { checkAndTriggerClosings } from './workers';
+
+// Helper: fire-and-forget closing check after user events
+function triggerClosingCheck(): void {
+    checkAndTriggerClosings().catch(err =>
+        console.error('[Closing] Event-triggered closing failed:', err)
+    );
+}
 
 const BATCH_SIZE = 1000;
 const INCOME_TYPES: Record<number, string> = {
@@ -586,6 +594,7 @@ function setupRealtimeListeners(contracts: NonNullable<ReturnType<typeof getWsCo
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleStakeCreated(user, stakeId, amount, tier, txHash, blockNumber);
+        triggerClosingCheck();
     });
 
     contracts.stakingManager.on('Compounded', async (user: string, stakeId: bigint, profit: bigint, newAmount: bigint, event: any) => {
@@ -598,6 +607,7 @@ function setupRealtimeListeners(contracts: NonNullable<ReturnType<typeof getWsCo
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleUnstaked(user, stakeId, returnAmount, txHash, blockNumber);
+        triggerClosingCheck();
     });
 
     contracts.stakingManager.on('CapReached', async (user: string, stakeId: bigint, totalEarned: bigint, event: any) => {
@@ -610,6 +620,7 @@ function setupRealtimeListeners(contracts: NonNullable<ReturnType<typeof getWsCo
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleStakingHarvested(user, stakeId, amount, txHash, blockNumber);
+        triggerClosingCheck();
     });
 
     // AffiliateDistributor
@@ -617,6 +628,7 @@ function setupRealtimeListeners(contracts: NonNullable<ReturnType<typeof getWsCo
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleReferrerSet(user, referrer, txHash, blockNumber);
+        triggerClosingCheck();
     });
 
     contracts.affiliateDistributor.on('DirectEarned', async (referrer: string, amount: bigint, event: any) => {
@@ -642,6 +654,7 @@ function setupRealtimeListeners(contracts: NonNullable<ReturnType<typeof getWsCo
         const txHash = event.log?.transactionHash || '';
         const blockNumber = event.log?.blockNumber || 0;
         await handleSubscriptionPurchased(buyer, amount, referrer, txHash, blockNumber);
+        triggerClosingCheck();
     });
 
     contracts.cms.on('RewardsClaimed', async (user: string, userAmount: bigint, systemAmount: bigint, excessDeleted: bigint, event: any) => {
