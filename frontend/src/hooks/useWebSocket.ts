@@ -71,7 +71,6 @@ export function useWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[WS] Connected');
         setConnectionState('connected');
         reconnectAttemptRef.current = 0;
       };
@@ -89,7 +88,6 @@ export function useWebSocket() {
         setConnectionState('disconnected');
         const delay = getReconnectDelay();
         reconnectAttemptRef.current++;
-        console.log(`[WS] Disconnected, reconnecting in ${delay}ms...`);
         reconnectTimeoutRef.current = setTimeout(connect, delay);
       };
 

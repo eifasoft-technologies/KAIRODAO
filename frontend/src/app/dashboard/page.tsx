@@ -25,11 +25,12 @@ import {
 import { useStaking } from '@/hooks/useStaking';
 import { useCMS } from '@/hooks/useCMS';
 import { useReferral } from '@/hooks/useReferral';
-import { CONTRACTS, AffiliateDistributorABI, USDTABI } from '@/lib/contracts';
+import { CONTRACTS, AffiliateDistributorABI, USDTABI, StakingManagerABI } from '@/lib/contracts';
 import { StatCard } from '@/components/ui/StatCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
 import { IncomeBreakdown } from '@/components/dashboard/IncomeBreakdown';
+import { TokenMetrics } from '@/components/dashboard/TokenMetrics';
 import { useWS } from '@/providers/WebSocketProvider';
 import { useToast } from '@/providers/ToastProvider';
 
@@ -133,8 +134,18 @@ export default function DashboardPage() {
     query: { enabled: !!address && !!CONTRACTS.AFFILIATE_DISTRIBUTOR, refetchInterval: 30_000 },
   });
 
+  // User stake count
+  const { data: userStakeCountData } = useReadContract({
+    address: CONTRACTS.STAKING_MANAGER,
+    abi: StakingManagerABI,
+    functionName: 'getUserStakeCount',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!CONTRACTS.STAKING_MANAGER, refetchInterval: 30_000 },
+  });
+
   const directCount = directCountData ? Number(directCountData as bigint) : 0;
   const teamVolumeUSD = teamVolumeData ? Number(formatUnits(teamVolumeData as bigint, 18)) : 0;
+  const userStakeCount = userStakeCountData ? Number(userStakeCountData as bigint) : 0;
 
   // Computed values
   const totalStakedUSD = totalStakeValue ? Number(formatUnits(totalStakeValue as bigint, 18)) : 0;
@@ -214,6 +225,9 @@ export default function DashboardPage() {
         <p className="text-dark-400 mt-1">Monitor your staking positions, rewards, and team performance</p>
       </div>
 
+      {/* Token Metrics Header */}
+      <TokenMetrics />
+
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <motion.div {...fadeUp}>
@@ -246,13 +260,8 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="mt-3">
-              <IncomeBreakdown {...income} />
+              <IncomeBreakdown {...income} showHarvest />
             </div>
-            {harvestableUSD >= 10 && (
-              <Button size="sm" variant="primary" className="w-full mt-3">
-                Harvest All
-              </Button>
-            )}
           </div>
         </motion.div>
 
@@ -304,14 +313,7 @@ export default function DashboardPage() {
                 <span className="text-dark-300 font-mono">{cmsRewards.leadership.toFixed(2)} KAIRO</span>
               </div>
             </div>
-            {cmsRewards.total > 0 && !hasClaimed && activeStakes.length === 0 && (
-              <div className="mt-3 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                <p className="text-[10px] text-red-400 font-medium flex items-center gap-1">
-                  <ExclamationTriangleIcon className="w-3 h-3" /> Stake required to claim
-                </p>
-              </div>
-            )}
-            {cmsRewards.total > 0 && !hasClaimed && activeStakes.length > 0 && (
+            {cmsRewards.total > 0 && !hasClaimed && (
               <div className="mt-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <p className="text-[10px] text-amber-400 font-medium flex items-center gap-1">
                   <ExclamationTriangleIcon className="w-3 h-3" /> Use It or Lose It
@@ -441,7 +443,7 @@ export default function DashboardPage() {
               </div>
               <ArrowRightIcon className="w-4 h-4 text-dark-500 group-hover:text-accent-400 transition-colors" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="px-3 py-2 rounded-lg bg-dark-900/60">
                 <p className="text-[10px] text-dark-500">Direct Referrals</p>
                 <p className="text-lg font-semibold text-dark-50 font-mono">{directCount}</p>
@@ -451,6 +453,10 @@ export default function DashboardPage() {
                 <p className="text-lg font-semibold text-dark-50 font-mono">
                   ${teamVolumeUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </p>
+              </div>
+              <div className="px-3 py-2 rounded-lg bg-dark-900/60">
+                <p className="text-[10px] text-dark-500">Total Stakes</p>
+                <p className="text-lg font-semibold text-dark-50 font-mono">{userStakeCount}</p>
               </div>
             </div>
           </Link>

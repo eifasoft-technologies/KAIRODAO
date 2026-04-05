@@ -95,19 +95,34 @@ export default function CMSPage() {
   const userAmount = rewards.total > 0 ? Math.min(rewards.total, maxClaim) * 0.9 : 0;
   const systemAmount = rewards.total > 0 ? Math.min(rewards.total, maxClaim) * 0.1 : 0;
 
-  const handleApprove = () => {
-    const amtBig = parseUnits(totalCost.toString(), 18);
-    writeApprove({
-      address: CONTRACTS.USDT,
-      abi: USDTABI,
-      functionName: 'approve',
-      args: [CONTRACTS.CMS, amtBig],
-    });
-  };
+  const [subStep, setSubStep] = useState<'idle' | 'approving' | 'subscribing'>('idle');
 
-  const handleSubscribe = () => {
-    const ref = (referrer && referrer.startsWith('0x') ? referrer : '0x0000000000000000000000000000000000000000') as `0x${string}`;
-    subscribe(BigInt(parsedSubAmount), ref);
+  // Auto-subscribe after approval
+  useEffect(() => {
+    if (subStep === 'approving' && approveTx && !isApproveConfirming) {
+      refetchAllowance().then(() => {
+        setSubStep('subscribing');
+        const ref = (referrer && referrer.startsWith('0x') ? referrer : '0x0000000000000000000000000000000000000000') as `0x${string}`;
+        subscribe(BigInt(parsedSubAmount), ref);
+      });
+    }
+  }, [approveTx, isApproveConfirming]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleOneClickSubscribe = () => {
+    if (needsApproval) {
+      setSubStep('approving');
+      const amtBig = parseUnits(totalCost.toString(), 18);
+      writeApprove({
+        address: CONTRACTS.USDT,
+        abi: USDTABI,
+        functionName: 'approve',
+        args: [CONTRACTS.CMS, amtBig],
+      });
+    } else {
+      setSubStep('subscribing');
+      const ref = (referrer && referrer.startsWith('0x') ? referrer : '0x0000000000000000000000000000000000000000') as `0x${string}`;
+      subscribe(BigInt(parsedSubAmount), ref);
+    }
   };
 
   const isLoading = isWritePending || isConfirming;
@@ -142,12 +157,6 @@ export default function CMSPage() {
         <div className="glass rounded-xl p-5">
           <p className="text-sm text-dark-400">Remaining Slots</p>
           <p className="text-lg font-semibold text-dark-50 font-mono mt-1">{remaining.toLocaleString()} / 10,000</p>
-          <div className="w-full h-1.5 bg-dark-700 rounded-full overflow-hidden mt-2">
-            <div
-              className="h-full bg-primary-500 rounded-full transition-all"
-              style={{ width: `${((10000 - remaining) / 10000) * 100}%` }}
-            />
-          </div>
         </div>
         <div className="glass rounded-xl p-5">
           <p className="text-sm text-dark-400">Your Subscriptions</p>
@@ -206,15 +215,15 @@ export default function CMSPage() {
             />
           </div>
 
-          {needsApproval ? (
-            <Button size="lg" variant="secondary" className="w-full" loading={isApproving || isApproveConfirming} onClick={handleApprove}>
-              Approve USDT
-            </Button>
-          ) : (
-            <Button size="lg" variant="primary" className="w-full" loading={isLoading} onClick={handleSubscribe}>
-              Subscribe ({totalCost} USDT)
-            </Button>
-          )}
+          <Button
+            size="lg"
+            variant="primary"
+            className="w-full"
+            loading={isLoading || isApproving || isApproveConfirming}
+            onClick={handleOneClickSubscribe}
+          >
+            {subStep === 'approving' ? 'Step 1/2: Approving...' : subStep === 'subscribing' ? 'Step 2/2: Subscribing...' : needsApproval ? `Approve & Subscribe (${totalCost} USDT)` : `Subscribe (${totalCost} USDT)`}
+          </Button>
         </div>
       </motion.div>
 
@@ -274,28 +283,8 @@ export default function CMSPage() {
           </div>
         )}
 
-        {/* No active stake */}
-        {userSubs > 0 && !userHasClaimed && !hasActiveStake && (
-          <div>
-            <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 mb-4">
-              <div className="flex items-start gap-3">
-                <ExclamationTriangleIcon className="w-6 h-6 text-red-400 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-red-400">Active Stake Required</p>
-                  <p className="text-xs text-dark-400 mt-1">
-                    You must have an active stake to claim CMS rewards. Stake USDT first to unlock claiming.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <Link href="/dashboard/staking">
-              <Button variant="primary" size="md">Stake USDT First</Button>
-            </Link>
-          </div>
-        )}
-
-        {/* Can claim */}
-        {userSubs > 0 && !userHasClaimed && hasActiveStake && rewards.total > 0 && (
+        {/* Not claimed yet, rewards available */}
+        {userSubs > 0 && !userHasClaimed && rewards.total > 0 && (
           <div className="space-y-4">
             <div className="p-4 rounded-lg bg-dark-900/60 border border-dark-700/30 space-y-3">
               <div className="flex justify-between text-sm">

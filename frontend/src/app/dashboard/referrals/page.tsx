@@ -20,6 +20,7 @@ import { ReferralTree, type ReferralNode } from '@/components/dashboard/Referral
 import { formatAddress } from '@/lib/utils';
 import { useReferral } from '@/hooks/useReferral';
 import { useToast } from '@/providers/ToastProvider';
+import { QualifierPools } from '@/components/dashboard/QualifierPools';
 
 export default function ReferralsPage() {
   const { address, isConnected } = useAccount();
@@ -359,6 +360,17 @@ export default function ReferralsPage() {
             })}
           </div>
         )}
+      </motion.div>
+
+      {/* Qualifier Pools */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="mt-6"
+      >
+        <h2 className="text-lg font-semibold text-dark-50 mb-4">Qualifier Pools</h2>
+        <QualifierPools />
       </motion.div>
     </div>
   );

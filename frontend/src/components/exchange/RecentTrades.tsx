@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useWS } from '@/providers/WebSocketProvider';
+import type { WSMessage } from '@/hooks/useWebSocket';
 
 interface Trade {
   time: string;
@@ -9,39 +11,26 @@ interface Trade {
   type: 'buy' | 'sell';
 }
 
-// Mock recent trades for display (will connect to backend later)
-function generateMockTrades(): Trade[] {
-  const trades: Trade[] = [];
-  const now = Date.now();
-  for (let i = 0; i < 15; i++) {
-    trades.push({
-      time: new Date(now - i * 120000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      price: 1.0 + (Math.random() - 0.5) * 0.1,
-      amount: Math.random() * 500 + 10,
-      type: Math.random() > 0.5 ? 'buy' : 'sell',
-    });
-  }
-  return trades;
-}
-
 export function RecentTrades() {
   const [trades, setTrades] = useState<Trade[]>([]);
+  const { subscribe } = useWS();
+
+  const handleMessage = useCallback((msg: WSMessage) => {
+    if (msg.type === 'trade_executed') {
+      const newTrade: Trade = {
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        price: parseFloat(msg.data.price) || 0,
+        amount: parseFloat(msg.data.amount) || 0,
+        type: parseFloat(msg.data.amount) > 0 ? 'buy' : 'sell',
+      };
+      setTrades((prev) => [newTrade, ...prev.slice(0, 49)]);
+    }
+  }, []);
 
   useEffect(() => {
-    setTrades(generateMockTrades());
-    const interval = setInterval(() => {
-      setTrades((prev) => {
-        const newTrade: Trade = {
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          price: 1.0 + (Math.random() - 0.5) * 0.1,
-          amount: Math.random() * 500 + 10,
-          type: Math.random() > 0.5 ? 'buy' : 'sell',
-        };
-        return [newTrade, ...prev.slice(0, 14)];
-      });
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
+    const unsub = subscribe(handleMessage);
+    return unsub;
+  }, [subscribe, handleMessage]);
 
   return (
     <div className="flex flex-col h-full">
@@ -55,7 +44,7 @@ export function RecentTrades() {
       {/* Trades */}
       <div className="flex-1 space-y-px overflow-y-auto">
         {trades.length === 0 ? (
-          <p className="text-xs text-dark-500 text-center py-6">No recent trades</p>
+          <p className="text-xs text-dark-500 text-center py-6">Waiting for trades...</p>
         ) : (
           trades.map((trade, i) => (
             <div key={`trade-${i}`} className="grid grid-cols-3 text-xs py-1 px-1 hover:bg-dark-700/30 transition-colors">

@@ -45,6 +45,19 @@ export const LiquidityPoolABI = [
   { type: 'function', name: 'getLivePrice', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'getCurrentPrice', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'getBalances', inputs: [], outputs: [{ name: 'usdtBalance', type: 'uint256' }, { name: 'kairoBalance', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getTotalValueLocked', inputs: [], outputs: [{ name: 'tvl', type: 'uint256' }], stateMutability: 'view' },
+  {
+    type: 'function', name: 'getLatestSnapshots', inputs: [{ name: 'count', type: 'uint256' }],
+    outputs: [{
+      type: 'tuple[]', components: [
+        { name: 'price', type: 'uint256' },
+        { name: 'timestamp', type: 'uint256' },
+        { name: 'usdtBalance', type: 'uint256' },
+        { name: 'kairoSupply', type: 'uint256' },
+      ],
+    }],
+    stateMutability: 'view',
+  },
 ] as const;
 
 // ============ USDT (ERC20) ABI ============

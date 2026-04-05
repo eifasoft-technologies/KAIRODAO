@@ -11,7 +11,6 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/exchange', label: 'Exchange' },
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/admin', label: 'Admin' },
 ];
 
 export function Navbar() {

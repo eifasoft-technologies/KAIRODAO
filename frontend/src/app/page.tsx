@@ -5,6 +5,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useKairoPrice } from '@/hooks/useKairoPrice';
 import { useReferral } from '@/hooks/useReferral';
+import { useCMS } from '@/hooks/useCMS';
+import { useReadContract } from 'wagmi';
+import { formatUnits } from 'viem';
+import { CONTRACTS, KAIROTokenABI, LiquidityPoolABI } from '@/lib/contracts';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 /* ────────── animation helpers ────────── */
@@ -33,7 +37,6 @@ function AnimatedSection({ children, className = '' }: { children: React.ReactNo
 }
 
 /* ────────── countdown logic ────────── */
-const CMS_DEADLINE = 1777766400; // May 1 2026 UTC-ish (adjusted)
 
 function useCountdown(target: number) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -78,12 +81,7 @@ function AnimatedCounter({ value, prefix = '', suffix = '' }: { value: number; p
 }
 
 /* ─────────────── TOKENOMICS DATA ─────────────── */
-const tokenomicsData = [
-  { name: 'Social Lock', value: 10000, color: '#22c55e' },
-  { name: 'CMS Rewards', value: 50000, color: '#3b82f6' },
-  { name: 'Staking Emissions', value: 300000, color: '#8b5cf6' },
-  { name: 'Burned', value: 5000, color: '#ef4444' },
-];
+const TOKENOMICS_COLORS = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ef4444'];
 
 /* ─────────────── STEPS ─────────────── */
 const steps = [
@@ -141,7 +139,42 @@ const tiers = [
 /* ══════════════════════════════════════════════════════ */
 export default function HomePage() {
   const { price, isLoading: priceLoading } = useKairoPrice();
-  const countdown = useCountdown(CMS_DEADLINE);
+  const { deadline: contractDeadline } = useCMS();
+
+  // Read on-chain tokenomics
+  const { data: totalSupplyRaw } = useReadContract({
+    address: CONTRACTS.KAIRO_TOKEN, abi: KAIROTokenABI, functionName: 'totalSupply',
+    query: { enabled: !!CONTRACTS.KAIRO_TOKEN, refetchInterval: 60_000 },
+  });
+  const { data: totalBurnedRaw } = useReadContract({
+    address: CONTRACTS.KAIRO_TOKEN, abi: KAIROTokenABI, functionName: 'getTotalBurned',
+    query: { enabled: !!CONTRACTS.KAIRO_TOKEN, refetchInterval: 60_000 },
+  });
+  const { data: socialLockRaw } = useReadContract({
+    address: CONTRACTS.KAIRO_TOKEN, abi: KAIROTokenABI, functionName: 'getSocialLockAmount',
+    query: { enabled: !!CONTRACTS.KAIRO_TOKEN, refetchInterval: 60_000 },
+  });
+  const { data: balancesRaw } = useReadContract({
+    address: CONTRACTS.LIQUIDITY_POOL, abi: LiquidityPoolABI, functionName: 'getBalances',
+    query: { enabled: !!CONTRACTS.LIQUIDITY_POOL, refetchInterval: 60_000 },
+  });
+
+  const totalSupply = totalSupplyRaw ? Number(formatUnits(totalSupplyRaw as bigint, 18)) : 0;
+  const totalBurned = totalBurnedRaw ? Number(formatUnits(totalBurnedRaw as bigint, 18)) : 0;
+  const socialLock = socialLockRaw ? Number(formatUnits(socialLockRaw as bigint, 18)) : 0;
+  const usdtLiquidity = balancesRaw ? Number(formatUnits((balancesRaw as [bigint, bigint])[0], 18)) : 0;
+
+  // CMS deadline from contract (fallback to 0 if not available)
+  const cmsDeadline = contractDeadline ? Number(contractDeadline as bigint) : 0;
+  const countdown = useCountdown(cmsDeadline);
+
+  // Build tokenomics chart data from on-chain values
+  const tokenomicsData = [
+    { name: 'Social Lock', value: Math.round(socialLock) || 10000, color: TOKENOMICS_COLORS[0] },
+    { name: 'Liquidity (USDT)', value: Math.round(usdtLiquidity) || 1, color: TOKENOMICS_COLORS[1] },
+    { name: 'Circulating', value: Math.max(Math.round(totalSupply - socialLock - totalBurned), 1), color: TOKENOMICS_COLORS[2] },
+    { name: 'Burned', value: Math.round(totalBurned) || 1, color: TOKENOMICS_COLORS[3] },
+  ];
 
   // Capture ?ref= parameter on landing page
   useReferral();
@@ -255,18 +288,7 @@ export default function HomePage() {
             ))}
           </motion.div>
 
-          {/* progress bar */}
-          <motion.div variants={fadeUp} custom={3} className="max-w-md mx-auto mb-8">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-dark-400">Subscriptions</span>
-              <span className="text-dark-300 font-mono">0 / 10,000</span>
-            </div>
-            <div className="h-3 rounded-full bg-dark-800 border border-dark-700 overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-primary-500 to-accent-500 transition-all duration-1000" style={{ width: '0%' }} />
-            </div>
-          </motion.div>
-
-          <motion.div variants={fadeUp} custom={4}>
+          <motion.div variants={fadeUp} custom={3}>
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold transition-all shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40"
@@ -311,9 +333,9 @@ export default function HomePage() {
             {/* Stat cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                { label: 'Total Supply', value: '365,000 KAIRO', sub: 'Dynamic minting via staking', icon: '📊' },
-                { label: 'Social Lock', value: '10,000 KAIRO', sub: 'Permanently locked forever', icon: '🔒' },
-                { label: 'Burned Tokens', value: '5,000 KAIRO', sub: 'Deflationary mechanism', icon: '🔥' },
+                { label: 'Total Supply', value: `${totalSupply > 0 ? Math.round(totalSupply).toLocaleString() : '—'} KAIRO`, sub: 'Dynamic minting via staking', icon: '📊' },
+                { label: 'Social Lock', value: `${socialLock > 0 ? Math.round(socialLock).toLocaleString() : '—'} KAIRO`, sub: 'Permanently locked forever', icon: '🔒' },
+                { label: 'Burned Tokens', value: `${totalBurned > 0 ? Math.round(totalBurned).toLocaleString() : '—'} KAIRO`, sub: 'Deflationary mechanism', icon: '🔥' },
                 { label: 'Price Formula', value: 'P = USDT / S', sub: 'S = Supply − Burned + Lock', icon: '📐' },
               ].map((card, i) => (
                 <motion.div
