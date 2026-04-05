@@ -20,7 +20,17 @@ export default function RegisterPage() {
   const [stakeAmount, setStakeAmount] = useState('10');
   const [step, setStep] = useState<'idle' | 'approving' | 'staking' | 'done'>('idle');
 
-  // ── Check if system wallet has any direct referrals (= at least one user registered) ──
+  // ── Check if anyone has already registered (staked with system wallet as referrer) ──
+  // directDividends(SYSTEM_WALLET) > 0 means at least one user staked with system wallet referrer
+  const { data: systemDividends, isLoading: divLoading } = useReadContract({
+    address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
+    abi: AffiliateDistributorABI,
+    functionName: 'directDividends',
+    args: [SYSTEM_WALLET],
+    query: { enabled: !!CONTRACTS.AFFILIATE_DISTRIBUTOR && !!SYSTEM_WALLET },
+  });
+
+  // Also check directCount in case setReferrer was called via CMS
   const { data: systemDirectCount, isLoading: countLoading } = useReadContract({
     address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
     abi: AffiliateDistributorABI,
@@ -30,16 +40,18 @@ export default function RegisterPage() {
   });
 
   const isGenesisMode = useMemo(() => {
-    if (countLoading) return false;
+    if (divLoading || countLoading) return false;
+    const dividends = systemDividends ? Number(systemDividends) : 0;
     const count = systemDirectCount ? Number(systemDirectCount) : 0;
-    return count === 0; // No one has registered under system wallet yet
-  }, [systemDirectCount, countLoading]);
+    return dividends === 0 && count === 0; // No one has registered yet
+  }, [systemDividends, systemDirectCount, divLoading, countLoading]);
 
   // ── Validate that the referrer address is actually registered on-chain ──
   const referrerAddr = referrerInput.trim() as `0x${string}`;
   const referrerIsValidFormat = referrerInput ? isAddress(referrerInput) : false;
 
-  const { data: referrerOnChain, isLoading: referrerCheckLoading } = useReadContract({
+  // Check if referrer has a referrer set (registered via CMS path)
+  const { data: referrerOnChain, isLoading: refCheckLoading } = useReadContract({
     address: CONTRACTS.AFFILIATE_DISTRIBUTOR,
     abi: AffiliateDistributorABI,
     functionName: 'referrerOf',
@@ -49,16 +61,30 @@ export default function RegisterPage() {
     },
   });
 
-  // A referrer is valid if they themselves have a referrer set (= they are registered),
-  // OR if they are the SYSTEM_WALLET (genesis referrer, always valid)
+  // Check if referrer has any stakes (registered via staking path)
+  const { data: referrerStakeCount, isLoading: refStakeLoading } = useReadContract({
+    address: CONTRACTS.STAKING_MANAGER,
+    abi: StakingManagerABI,
+    functionName: 'getUserStakeCount',
+    args: [referrerAddr],
+    query: {
+      enabled: !!referrerIsValidFormat && !!CONTRACTS.STAKING_MANAGER && !isGenesisMode,
+    },
+  });
+
+  const referrerCheckLoading = refCheckLoading || refStakeLoading;
+
+  // A referrer is valid if they have a referrer set OR have staked OR are the SYSTEM_WALLET
   const referrerIsRegistered = useMemo(() => {
-    if (isGenesisMode) return true; // Genesis mode: system wallet used, always valid
+    if (isGenesisMode) return true;
     if (!referrerIsValidFormat) return false;
     if (referrerAddr.toLowerCase() === SYSTEM_WALLET.toLowerCase()) return true;
     if (referrerCheckLoading) return false;
     const ref = referrerOnChain as `0x${string}` | undefined;
-    return !!ref && ref.toLowerCase() !== ZERO_ADDRESS.toLowerCase();
-  }, [isGenesisMode, referrerIsValidFormat, referrerAddr, referrerOnChain, referrerCheckLoading]);
+    const hasReferrer = !!ref && ref.toLowerCase() !== ZERO_ADDRESS.toLowerCase();
+    const hasStake = !!referrerStakeCount && Number(referrerStakeCount) > 0;
+    return hasReferrer || hasStake;
+  }, [isGenesisMode, referrerIsValidFormat, referrerAddr, referrerOnChain, referrerStakeCount, referrerCheckLoading]);
 
   // The actual referrer address to use on-chain
   const effectiveReferrer = isGenesisMode ? SYSTEM_WALLET : (referrerAddr as `0x${string}`);
