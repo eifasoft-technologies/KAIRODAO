@@ -103,11 +103,9 @@ services:
     volumes:
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
-      - ./certbot-entrypoint.sh:/certbot-entrypoint.sh
     depends_on:
       - nginx
-    entrypoint: /bin/sh
-    command: ["/certbot-entrypoint.sh"]
+    command: certonly --webroot --webroot-path=/var/www/certbot -d kairodao.com -d www.kairodao.com --email admin@kairodao.com --agree-tos --no-eff-email --non-interactive
     networks:
       - kairo_network
 
