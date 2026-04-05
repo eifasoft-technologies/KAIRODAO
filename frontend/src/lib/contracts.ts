@@ -11,6 +11,9 @@ export const CONTRACTS = {
   USDT: (process.env.NEXT_PUBLIC_USDT || '') as Address,
 } as const;
 
+/** Genesis referrer — the admin/system wallet used as the very first referrer */
+export const SYSTEM_WALLET = (process.env.NEXT_PUBLIC_SYSTEM_WALLET || '0x624D0985D844Cd1DF132723a9d849FE1A34cAf9D') as Address;
+
 // ============ AccessControl / Pausable shared ABI fragments ============
 export const PausableABI = [
   { type: 'function', name: 'paused', inputs: [], outputs: [{ type: 'bool' }], stateMutability: 'view' },
