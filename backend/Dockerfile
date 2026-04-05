@@ -13,4 +13,4 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/db/migrations ./dist/db/migrations
 EXPOSE 4000
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
