@@ -58,6 +58,21 @@ services:
         condition: service_healthy
     networks:
       - kairo_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=kairodao_kairo_network"
+      - "traefik.http.routers.kairodao-api.rule=Host(`kairodao.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.kairodao-api.entrypoints=websecure"
+      - "traefik.http.routers.kairodao-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kairodao-api.loadbalancer.server.port=4000"
+      - "traefik.http.routers.kairodao-ws.rule=Host(`kairodao.com`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.kairodao-ws.entrypoints=websecure"
+      - "traefik.http.routers.kairodao-ws.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kairodao-ws.loadbalancer.server.port=4000"
+      - "traefik.http.routers.kairodao-health.rule=Host(`kairodao.com`) && PathPrefix(`/health`)"
+      - "traefik.http.routers.kairodao-health.entrypoints=websecure"
+      - "traefik.http.routers.kairodao-health.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kairodao-health.loadbalancer.server.port=4000"
 
   frontend:
     build:
@@ -80,40 +95,18 @@ services:
       - backend
     networks:
       - kairo_network
-
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - kairo_network
-
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    depends_on:
-      - nginx
-    command: certonly --webroot --webroot-path=/var/www/certbot -d kairodao.com -d www.kairodao.com --email admin@kairodao.com --agree-tos --no-eff-email --non-interactive
-    networks:
-      - kairo_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=kairodao_kairo_network"
+      - "traefik.http.routers.kairodao-frontend.rule=Host(`kairodao.com`) || Host(`www.kairodao.com`)"
+      - "traefik.http.routers.kairodao-frontend.entrypoints=websecure"
+      - "traefik.http.routers.kairodao-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kairodao-frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.kairodao-frontend.priority=1"
 
 volumes:
   postgres_data:
   redis_data:
-  certbot_conf:
-  certbot_www:
 
 networks:
   kairo_network:
