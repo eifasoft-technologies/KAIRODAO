@@ -1,5 +1,14 @@
 import { ethers } from "hardhat";
 
+// Helper: wait for tx with a delay to let RPC nonce sync
+const DELAY = 3000;
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+async function waitTx(tx: any) {
+    const receipt = await tx.wait();
+    await sleep(DELAY);
+    return receipt;
+}
+
 /**
  * KAIRO DeFi Ecosystem - Testnet Deployment Script
  * 
@@ -39,6 +48,7 @@ async function main() {
     const MockUSDT = await ethers.getContractFactory("MockUSDT");
     const mockUSDT = await MockUSDT.deploy();
     await mockUSDT.waitForDeployment();
+    await sleep(DELAY);
     const usdtAddress = await mockUSDT.getAddress();
     console.log("  MockUSDT:", usdtAddress);
 
@@ -47,6 +57,7 @@ async function main() {
     const KAIROToken = await ethers.getContractFactory("KAIROToken");
     const kairoToken = await KAIROToken.deploy(deployer.address);
     await kairoToken.waitForDeployment();
+    await sleep(DELAY);
     const kairoAddress = await kairoToken.getAddress();
     console.log("  KAIROToken:", kairoAddress);
 
@@ -55,16 +66,17 @@ async function main() {
     const LiquidityPool = await ethers.getContractFactory("LiquidityPool");
     const liquidityPool = await LiquidityPool.deploy(kairoAddress, usdtAddress);
     await liquidityPool.waitForDeployment();
+    await sleep(DELAY);
     const liquidityPoolAddress = await liquidityPool.getAddress();
     console.log("  LiquidityPool:", liquidityPoolAddress);
 
     // 4. Configure KAIROToken
     console.log("[4/8] Configuring KAIROToken...");
     let tx = await kairoToken.setLiquidityPool(liquidityPoolAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  LiquidityPool -> LiquidityPool");
     tx = await kairoToken.mintInitialSupply();
-    await tx.wait();
+    await waitTx(tx);
     console.log("  Social lock: 10,000 KAIRO minted to LiquidityPool");
 
     // 5. AffiliateDistributor - constructor(address _kairoToken, address _liquidityPool, address _admin, address _systemWallet)
@@ -74,6 +86,7 @@ async function main() {
         kairoAddress, liquidityPoolAddress, deployer.address, systemWallet
     );
     await affiliateDistributor.waitForDeployment();
+    await sleep(DELAY);
     const affiliateAddress = await affiliateDistributor.getAddress();
     console.log("  AffiliateDistributor:", affiliateAddress);
 
@@ -84,14 +97,15 @@ async function main() {
         kairoAddress, liquidityPoolAddress, usdtAddress, systemWallet, daoWallets, deployer.address
     );
     await stakingManager.waitForDeployment();
+    await sleep(DELAY);
     const stakingAddress = await stakingManager.getAddress();
     console.log("  StakingManager:", stakingAddress);
 
     // Link StakingManager <-> AffiliateDistributor
     tx = await stakingManager.setAffiliateDistributor(affiliateAddress);
-    await tx.wait();
+    await waitTx(tx);
     tx = await affiliateDistributor.setStakingManager(stakingAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  StakingManager <-> AffiliateDistributor linked");
 
     // 7. CoreMembershipSubscription
@@ -102,12 +116,13 @@ async function main() {
         stakingAddress, affiliateAddress, systemWallet, deployer.address
     );
     await cms.waitForDeployment();
+    await sleep(DELAY);
     const cmsAddress = await cms.getAddress();
     console.log("  CoreMembershipSubscription:", cmsAddress);
 
     // Link StakingManager -> CMS (for addEarnings authorization)
     tx = await stakingManager.setCMS(cmsAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  StakingManager -> CMS linked");
 
     // 8. AtomicP2p - constructor(address _kairoToken, address _usdtToken, address _liquidityPool)
@@ -115,6 +130,7 @@ async function main() {
     const AtomicP2p = await ethers.getContractFactory("AtomicP2p");
     const atomicP2p = await AtomicP2p.deploy(kairoAddress, usdtAddress, liquidityPoolAddress);
     await atomicP2p.waitForDeployment();
+    await sleep(DELAY);
     const p2pAddress = await atomicP2p.getAddress();
     console.log("  AtomicP2p:", p2pAddress);
     console.log("");
@@ -130,48 +146,48 @@ async function main() {
     const BURNER_ROLE = await kairoToken.BURNER_ROLE();
 
     tx = await kairoToken.grantRole(MINTER_ROLE, stakingAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  KAIROToken MINTER_ROLE -> StakingManager");
 
     tx = await kairoToken.grantRole(MINTER_ROLE, affiliateAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  KAIROToken MINTER_ROLE -> AffiliateDistributor");
 
     tx = await kairoToken.grantRole(MINTER_ROLE, cmsAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  KAIROToken MINTER_ROLE -> CMS");
 
     tx = await kairoToken.grantRole(BURNER_ROLE, liquidityPoolAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  KAIROToken BURNER_ROLE -> LiquidityPool");
 
     tx = await kairoToken.grantRole(BURNER_ROLE, p2pAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  KAIROToken BURNER_ROLE -> AtomicP2p");
 
     // AffiliateDistributor roles
     const STAKING_ROLE = await affiliateDistributor.STAKING_ROLE();
     tx = await affiliateDistributor.grantRole(STAKING_ROLE, cmsAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  AffiliateDistributor STAKING_ROLE -> CMS");
 
     // StakingManager roles
     const COMPOUNDER_ROLE = await stakingManager.COMPOUNDER_ROLE();
     tx = await stakingManager.grantRole(COMPOUNDER_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  StakingManager COMPOUNDER_ROLE -> deployer");
 
     // LiquidityPool roles
     tx = await liquidityPool.grantCoreRole(stakingAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  LiquidityPool CORE_ROLE -> StakingManager");
 
     tx = await liquidityPool.grantCoreRole(cmsAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  LiquidityPool CORE_ROLE -> CMS");
 
     tx = await liquidityPool.grantP2PRole(p2pAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  LiquidityPool P2P_ROLE -> AtomicP2p");
     console.log("");
 
@@ -183,20 +199,20 @@ async function main() {
 
     // Register genesis account (deployer as genesis - root of referral tree)
     tx = await affiliateDistributor.grantRole(STAKING_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     tx = await affiliateDistributor.setReferrer(deployer.address, ethers.ZeroAddress);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  Genesis account registered:", deployer.address);
 
     // Mint extra USDT to deployer for testing
     tx = await mockUSDT.mint(deployer.address, ethers.parseEther("100000"));
-    await tx.wait();
+    await waitTx(tx);
     console.log("  Minted 100,000 extra USDT to deployer");
 
     // Seed LiquidityPool with 10,000 USDT initial liquidity
     const INITIAL_LIQUIDITY = ethers.parseEther("10000");
     tx = await mockUSDT.transfer(liquidityPoolAddress, INITIAL_LIQUIDITY);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  Transferred 10,000 USDT to LiquidityPool for liquidity");
 
     const initialPrice = await liquidityPool.getLivePrice();
@@ -209,7 +225,7 @@ async function main() {
 
         // Mint USDT to test user
         tx = await mockUSDT.mint(testUser.address, ethers.parseEther("50000"));
-        await tx.wait();
+        await waitTx(tx);
         console.log("  Minted 50,000 USDT to test user");
     }
     console.log("");
@@ -267,42 +283,42 @@ async function main() {
 
     // 1. KAIROToken — renounce DEFAULT_ADMIN_ROLE
     tx = await kairoToken.renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] KAIROToken DEFAULT_ADMIN_ROLE");
 
     // 2. StakingManager — renounce COMPOUNDER_ROLE + DEFAULT_ADMIN_ROLE
     tx = await stakingManager.renounceRole(COMPOUNDER_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] StakingManager COMPOUNDER_ROLE");
     tx = await stakingManager.renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] StakingManager DEFAULT_ADMIN_ROLE");
 
     // 3. AffiliateDistributor — renounce STAKING_ROLE (genesis setup) + DEFAULT_ADMIN_ROLE
     tx = await affiliateDistributor.renounceRole(STAKING_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] AffiliateDistributor STAKING_ROLE");
     tx = await affiliateDistributor.renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] AffiliateDistributor DEFAULT_ADMIN_ROLE");
 
     // 4. CoreMembershipSubscription — renounce DEFAULT_ADMIN_ROLE
     tx = await cms.renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] CMS DEFAULT_ADMIN_ROLE");
 
     // 5. LiquidityPool — renounce DEFAULT_ADMIN_ROLE
     tx = await liquidityPool.renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] LiquidityPool DEFAULT_ADMIN_ROLE");
 
     // 6. AtomicP2p — renounce ADMIN_ROLE + DEFAULT_ADMIN_ROLE
     const P2P_ADMIN_ROLE = await atomicP2p.ADMIN_ROLE();
     tx = await atomicP2p.renounceRole(P2P_ADMIN_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] AtomicP2p ADMIN_ROLE");
     tx = await atomicP2p.renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-    await tx.wait();
+    await waitTx(tx);
     console.log("  [BURNED] AtomicP2p DEFAULT_ADMIN_ROLE");
 
     console.log("");
