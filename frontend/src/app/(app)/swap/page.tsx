@@ -27,7 +27,7 @@ export default function SwapPage() {
   const { kairoFormatted } = useTokenBalances();
   const approval = useApproval(contracts.kairoToken, contracts.liquidityPool);
 
-  // Pool balances for liquidity info
+  // Pool USDT balance (liquidity)
   const poolKairo = poolBalances ? Number(formatUnits(BigInt(poolBalances[0] || 0), KAIRO_DECIMALS)) : 0;
   const poolUsdt = poolBalances ? Number(formatUnits(BigInt(poolBalances[1] || 0), USDT_DECIMALS)) : 0;
 
@@ -72,16 +72,10 @@ export default function SwapPage() {
 
       <div className="max-w-lg mx-auto space-y-4">
         {/* Pool Liquidity Info */}
-        <div className="grid grid-cols-2 gap-3">
-          <GlassCard padding="p-3" variant="cyan">
-            <p className="text-[10px] uppercase tracking-wider text-surface-400">Pool KAIRO</p>
-            <p className="text-lg font-mono font-bold text-surface-900">{formatCompact(poolKairo, 0)}</p>
-          </GlassCard>
-          <GlassCard padding="p-3" variant="gold">
-            <p className="text-[10px] uppercase tracking-wider text-surface-400">Pool USDT</p>
-            <p className="text-lg font-mono font-bold text-surface-900">${formatCompact(poolUsdt, 0)}</p>
-          </GlassCard>
-        </div>
+        <GlassCard padding="p-3" variant="gold">
+          <p className="text-[10px] uppercase tracking-wider text-surface-400">Pool Liquidity (USDT)</p>
+          <p className="text-lg font-mono font-bold text-surface-900">${formatCompact(poolUsdt, 2)}</p>
+        </GlassCard>
 
         <GlassCard variant="gradient">
           <div className="mb-6 text-center">

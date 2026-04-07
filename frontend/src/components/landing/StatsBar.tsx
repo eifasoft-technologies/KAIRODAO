@@ -23,7 +23,7 @@ const icons = [CurrencyDollarIcon, BanknotesIcon, FireIcon, ChartBarIcon];
 
 const stats = [
   { key: 'price', label: 'KAIRO Price', prefix: '$' },
-  { key: 'tvl', label: 'Total Value Locked', prefix: '$' },
+  { key: 'tvl', label: 'Pool Liquidity', prefix: '$' },
   { key: 'totalBurned', label: 'Total Burned', suffix: ' KAIRO' },
   { key: 'supply', label: 'Total Supply', suffix: ' KAIRO' },
 ];

@@ -5,6 +5,7 @@ import { contracts, KAIRO_DECIMALS, USDT_DECIMALS } from '@/config/contracts';
 import { KAIROTokenABI } from '@/config/abis/KAIROToken';
 import { LiquidityPoolABI } from '@/config/abis/LiquidityPool';
 import { StakingManagerABI } from '@/config/abis/StakingManager';
+import { erc20Abi } from 'viem';
 import { formatUnits } from 'viem';
 
 export function useGlobalStats() {
@@ -28,12 +29,14 @@ export function useGlobalStats() {
     },
   });
 
+  // TVL = USDT balance in liquidity pool only
   const { data: tvl } = useReadContract({
-    address: contracts.liquidityPool,
-    abi: LiquidityPoolABI,
-    functionName: 'getTotalValueLocked',
+    address: contracts.usdt,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [contracts.liquidityPool],
     query: {
-      enabled: contracts.liquidityPool !== '0x',
+      enabled: contracts.usdt !== '0x' && contracts.liquidityPool !== '0x',
       refetchInterval: 15000,
     },
   });

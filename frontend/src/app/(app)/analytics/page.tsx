@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
           gradient="purple"
         />
         <StatCard
-          label="Total Value Locked"
+          label="Pool Liquidity (USDT)"
           value={formatCompact(Number(tvlFormatted), 0)}
           prefix="$"
           icon={<BanknotesIcon className="w-5 h-5" />}

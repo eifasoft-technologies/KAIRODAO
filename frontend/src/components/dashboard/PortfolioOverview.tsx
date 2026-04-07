@@ -7,7 +7,7 @@ import { useKairoPrice } from '@/hooks/useKairoPrice';
 import { useGlobalStats } from '@/hooks/useGlobalStats';
 import { useSwap } from '@/hooks/useSwap';
 import { formatUnits } from 'viem';
-import { KAIRO_DECIMALS, USDT_DECIMALS } from '@/config/contracts';
+import { USDT_DECIMALS } from '@/config/contracts';
 import { formatPrice, formatCompact } from '@/lib/utils';
 import {
   CurrencyDollarIcon,
@@ -31,10 +31,8 @@ export function PortfolioOverview() {
   const harvestableUsd = Number(totalHarvestable) / 1e6;
   const totalPortfolioUsd = kairoUsd + Number(usdtFormatted) + stakedUsd;
 
-  // Pool liquidity
-  const poolKairo = poolBalances ? Number(formatUnits(BigInt(poolBalances[0] || 0), KAIRO_DECIMALS)) : 0;
+  // Pool liquidity (USDT only)
   const poolUsdt = poolBalances ? Number(formatUnits(BigInt(poolBalances[1] || 0), USDT_DECIMALS)) : 0;
-  const totalLiquidity = poolUsdt + (poolKairo * price);
 
   // Total circulation
   const totalCirculation = Number(totalSupplyFormatted);
@@ -102,7 +100,7 @@ export function PortfolioOverview() {
         />
         <StatCard
           label="Pool Liquidity"
-          value={formatCompact(totalLiquidity, 2)}
+          value={formatCompact(poolUsdt, 2)}
           prefix="$"
           icon={<BeakerIcon className="w-5 h-5" />}
           gradient="purple"
