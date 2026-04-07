@@ -21,14 +21,14 @@ import {
 export default function CMSPage() {
   const { isConnected } = useAccount();
   const [amount, setAmount] = useState('1');
-  const { subscriptionCount, remainingSubscriptions, claimableFormatted, maxClaimable, subscribe, claimRewards, isPending } = useCMS();
+  const { totalSubscriptions, userSubscriptionCount, remainingSubscriptions, claimableFormatted, maxClaimable, subscribe, claimRewards, isPending } = useCMS();
   const { usdtFormatted } = useTokenBalances();
   const { storedReferrer, hasOnChainReferrer } = useRegistration();
   const totalCost = Number(amount) * CMS_PRICE_USDT;
   const costBigInt = parseUnits(totalCost.toString(), USDT_DECIMALS);
   const approval = useApproval(contracts.usdt, contracts.cms);
 
-  const soldPercent = CMS_MAX_SUBSCRIPTIONS > 0 ? (subscriptionCount / CMS_MAX_SUBSCRIPTIONS) * 100 : 0;
+  const soldPercent = CMS_MAX_SUBSCRIPTIONS > 0 ? (totalSubscriptions / CMS_MAX_SUBSCRIPTIONS) * 100 : 0;
   const isAlmostSoldOut = remainingSubscriptions < 1000;
 
   if (!isConnected) {
@@ -87,7 +87,7 @@ export default function CMSPage() {
             </div>
 
             <ProgressBar
-              value={subscriptionCount}
+              value={totalSubscriptions}
               max={CMS_MAX_SUBSCRIPTIONS}
               variant="cyan"
               size="lg"
@@ -95,7 +95,7 @@ export default function CMSPage() {
 
             <div className="grid grid-cols-3 gap-4 mt-4">
               <div className="text-center p-3 rounded-xl bg-gradient-to-br from-primary-50/60 to-white/60 border border-primary-100/50">
-                <p className="text-lg font-mono font-bold text-surface-900">{subscriptionCount.toLocaleString()}</p>
+                <p className="text-lg font-mono font-bold text-surface-900">{totalSubscriptions.toLocaleString()}</p>
                 <p className="text-[10px] uppercase tracking-wider text-surface-400">Sold</p>
               </div>
               <div className="text-center p-3 rounded-xl bg-gradient-to-br from-secondary-50/60 to-white/60 border border-secondary-100/50">

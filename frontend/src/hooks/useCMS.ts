@@ -1,7 +1,8 @@
 'use client';
 
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
-import { contracts, USDT_DECIMALS, KAIRO_DECIMALS } from '@/config/contracts';
+import { useQueryClient } from '@tanstack/react-query';
+import { contracts, KAIRO_DECIMALS } from '@/config/contracts';
 import { CoreMembershipSubscriptionABI } from '@/config/abis/CoreMembershipSubscription';
 import { useToast } from '@/components/ui/Toast';
 import { formatUnits } from 'viem';
@@ -10,18 +11,32 @@ import { useEffect } from 'react';
 export function useCMS() {
   const { address } = useAccount();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: subscriptionCount, isLoading: countLoading } = useReadContract({
+  // Global total subscriptions sold
+  const { data: totalSubs, isLoading: countLoading, queryKey: totalSubsKey } = useReadContract({
     address: contracts.cms,
     abi: CoreMembershipSubscriptionABI,
-    functionName: 'getSubscriptionCount',
+    functionName: 'totalSubscriptions',
     query: {
       enabled: contracts.cms !== '0x',
-      refetchInterval: 30000,
+      refetchInterval: 15000,
     },
   });
 
-  const { data: claimable } = useReadContract({
+  // Per-user subscription count
+  const { data: userSubCount, queryKey: userSubCountKey } = useReadContract({
+    address: contracts.cms,
+    abi: CoreMembershipSubscriptionABI,
+    functionName: 'getSubscriptionCount',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && contracts.cms !== '0x',
+      refetchInterval: 15000,
+    },
+  });
+
+  const { data: claimable, queryKey: claimableKey } = useReadContract({
     address: contracts.cms,
     abi: CoreMembershipSubscriptionABI,
     functionName: 'getClaimableRewards',
@@ -43,12 +58,13 @@ export function useCMS() {
     },
   });
 
-  const { data: remaining } = useReadContract({
+  const { data: remaining, queryKey: remainingKey } = useReadContract({
     address: contracts.cms,
     abi: CoreMembershipSubscriptionABI,
     functionName: 'getRemainingSubscriptions',
     query: {
       enabled: contracts.cms !== '0x',
+      refetchInterval: 15000,
     },
   });
 
@@ -58,9 +74,25 @@ export function useCMS() {
   const { isSuccess: subscribeSuccess, isError: subscribeError } = useWaitForTransactionReceipt({ hash: subscribeHash });
   const { isSuccess: claimSuccess, isError: claimError } = useWaitForTransactionReceipt({ hash: claimHash });
 
-  useEffect(() => { if (subscribeSuccess) toast({ type: 'success', title: 'Subscribed successfully!' }); }, [subscribeSuccess]);
+  // Refetch all data after successful subscribe
+  useEffect(() => {
+    if (subscribeSuccess) {
+      toast({ type: 'success', title: 'Subscribed successfully!' });
+      queryClient.invalidateQueries({ queryKey: totalSubsKey });
+      queryClient.invalidateQueries({ queryKey: userSubCountKey });
+      queryClient.invalidateQueries({ queryKey: remainingKey });
+      queryClient.invalidateQueries({ queryKey: claimableKey });
+    }
+  }, [subscribeSuccess]);
   useEffect(() => { if (subscribeError) toast({ type: 'error', title: 'Subscription failed' }); }, [subscribeError]);
-  useEffect(() => { if (claimSuccess) toast({ type: 'success', title: 'CMS rewards claimed!' }); }, [claimSuccess]);
+
+  // Refetch after successful claim
+  useEffect(() => {
+    if (claimSuccess) {
+      toast({ type: 'success', title: 'CMS rewards claimed!' });
+      queryClient.invalidateQueries({ queryKey: claimableKey });
+    }
+  }, [claimSuccess]);
   useEffect(() => { if (claimError) toast({ type: 'error', title: 'Claim failed' }); }, [claimError]);
 
   const subscribe = (amount: bigint, referrer: string) => {
@@ -83,7 +115,8 @@ export function useCMS() {
   };
 
   return {
-    subscriptionCount: Number(subscriptionCount || 0),
+    totalSubscriptions: Number(totalSubs || 0),
+    userSubscriptionCount: Number(userSubCount || 0),
     remainingSubscriptions: Number(remaining || 0),
     claimableRewards: claimable as any,
     maxClaimable: maxClaimable as bigint | undefined,

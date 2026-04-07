@@ -23,7 +23,7 @@ import {
 export default function AnalyticsPage() {
   const { tvlFormatted, totalBurnedFormatted, totalSupplyFormatted, swapStats, globalCap } = useGlobalStats();
   const { price } = useKairoPrice();
-  const { subscriptionCount, remainingSubscriptions } = useCMS();
+  const { totalSubscriptions, remainingSubscriptions } = useCMS();
   const marketCap = price * Number(totalSupplyFormatted);
 
   // Parse swap stats
@@ -202,7 +202,7 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-xl bg-gradient-to-br from-accent-50/60 to-white border border-accent-100/50">
                 <p className="text-[10px] uppercase tracking-wider text-surface-400">Total Sold</p>
-                <p className="text-lg font-mono font-bold text-surface-900">{subscriptionCount.toLocaleString()}</p>
+                <p className="text-lg font-mono font-bold text-surface-900">{totalSubscriptions.toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-xl bg-gradient-to-br from-primary-100/60 to-primary-50/40 border border-primary-200/50">
                 <p className="text-[10px] uppercase tracking-wider text-surface-400">Remaining</p>
@@ -212,9 +212,9 @@ export default function AnalyticsPage() {
             <div>
               <div className="flex justify-between text-xs text-surface-500 mb-1">
                 <span>Subscription Progress</span>
-                <span className="font-mono">{CMS_MAX_SUBSCRIPTIONS > 0 ? ((subscriptionCount / CMS_MAX_SUBSCRIPTIONS) * 100).toFixed(1) : 0}%</span>
+                <span className="font-mono">{CMS_MAX_SUBSCRIPTIONS > 0 ? ((totalSubscriptions / CMS_MAX_SUBSCRIPTIONS) * 100).toFixed(1) : 0}%</span>
               </div>
-              <ProgressBar value={subscriptionCount} max={CMS_MAX_SUBSCRIPTIONS} variant="purple" size="sm" />
+              <ProgressBar value={totalSubscriptions} max={CMS_MAX_SUBSCRIPTIONS} variant="purple" size="sm" />
             </div>
           </div>
         </GlassCard>
