@@ -35,12 +35,12 @@ function RegisterPageInner() {
     query: { enabled: !!referrerAddr && contracts.affiliateDistributor !== '0x' },
   });
 
-  // Redirect to dashboard if already registered or after successful on-chain registration
+  // Redirect to dashboard if already registered (even if they opened a referral link)
   useEffect(() => {
-    if (isRegistered && !regLoading && !refParam) {
+    if (isRegistered && !regLoading) {
       router.replace('/dashboard');
     }
-  }, [isRegistered, regLoading, refParam, router]);
+  }, [isRegistered, regLoading, router]);
 
   // Redirect after successful registration tx
   useEffect(() => {
