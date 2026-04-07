@@ -15,7 +15,10 @@ function RegisterPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isConnected, address } = useAccount();
-  const { isRegistered, isLoading: regLoading, isGenesisMode, register, isPending, isSuccess } = useRegistration();
+  const { isRegistered, isLoading: regLoading, isGenesisMode, isFirstUserMode, register, isPending, isSuccess } = useRegistration();
+
+  // Either genesis or first-user can skip referrer
+  const skipReferrer = isGenesisMode || isFirstUserMode;
 
   const refParam = searchParams.get('ref') || '';
   const [referrer, setReferrer] = useState(refParam);
@@ -111,11 +114,11 @@ function RegisterPageInner() {
   }
 
   // --- Registration form ---
-  const effectiveReferrer = isGenesisMode && !referrer ? SYSTEM_WALLET : referrer;
-  // For non-genesis: require on-chain proof that the referrer is registered
+  const effectiveReferrer = skipReferrer && !referrer ? SYSTEM_WALLET : referrer;
+  // For non-genesis/non-first-user: require on-chain proof that the referrer is registered
   const referrerVerifiedOnChain = referrerOfReferrer !== undefined && referrerOfReferrer !== zeroAddress;
   const canSubmit = !referrerError && (
-    isGenesisMode || (effectiveReferrer && isAddress(effectiveReferrer) && referrerVerifiedOnChain)
+    skipReferrer || (effectiveReferrer && isAddress(effectiveReferrer) && referrerVerifiedOnChain)
   );
 
   const handleRegister = () => {
@@ -142,7 +145,7 @@ function RegisterPageInner() {
           </p>
         </div>
 
-        {!isGenesisMode && !hasRefLink && (
+        {!skipReferrer && !hasRefLink && (
           <div className="mb-4 p-3 rounded-xl bg-primary-50 border border-primary-200 text-xs text-surface-600 text-center">
             Enter the referral address shared by an existing KAIRO member, or use a referral link: <span className="text-primary-600 font-mono">domain.com/register?ref=0x...</span>
           </div>
@@ -154,8 +157,14 @@ function RegisterPageInner() {
           </div>
         )}
 
+        {isFirstUserMode && (
+          <div className="mb-4 p-3 rounded-xl bg-accent-50 border border-accent-200 text-xs text-accent-700 text-center">
+            Welcome! You are the first user — no referral needed. Register to get started!
+          </div>
+        )}
+
         <div className="space-y-4">
-          {!isGenesisMode && (
+          {!skipReferrer && (
             <div>
               <Input
                 label="Referred By"
