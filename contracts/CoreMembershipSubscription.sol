@@ -63,6 +63,10 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
     // Referral rewards per subscription (KAIRO, 18 decimals) for 5 levels
     uint256[5] public REF_REWARDS = [1e18, 0.5e18, 0.5e18, 0.25e18, 0.25e18];
 
+    // Direct referral unlock thresholds per level (directs with active CMS subscription)
+    // Level 1: 0 directs, Level 2: 2, Level 3: 3, Level 4: 4, Level 5: 5
+    uint256[5] public LEVEL_DIRECTS = [0, 2, 3, 4, 5];
+
     // ============ State Variables ============
     uint256 public deadline;                                   // CMS subscription deadline
     uint256 public totalSubscriptions;                         // Global counter
@@ -71,6 +75,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
     mapping(address => uint256) public leadershipRewards;      // Referral rewards (accumulated)
     mapping(address => bool) public hasClaimed;                // One-time claim tracking
     mapping(address => address) public referrerOf;             // Direct referrer for CMS
+    mapping(address => uint256) public cmsDirectCount;         // Count of directs with active CMS subscription
 
     // External contracts
     IKAIROToken public kairoToken;
@@ -158,13 +163,21 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
             referrerOf[msg.sender] = _referrer;
         }
 
+        // Increment CMS direct count for referrer on first subscription
+        // (counts directs who have active CMS subscription)
+        if (subscriptionCount[msg.sender] == _amount && referrerOf[msg.sender] != address(0)) {
+            // subscriptionCount was just incremented above, so == _amount means first-time subscriber
+            cmsDirectCount[referrerOf[msg.sender]] += 1;
+        }
+
         // Distribute referral rewards up 5 levels
-        // Eligibility: Referrer only needs an active CMS subscription (subscriptionCount > 0)
+        // Eligibility: Referrer needs active CMS + enough CMS directs to unlock level
+        // Level 1: 0 directs, Level 2: 2, Level 3: 3, Level 4: 4, Level 5: 5
         address currentReferrer = referrerOf[msg.sender];
         for (uint256 i = 0; i < 5; i++) {
             if (currentReferrer == address(0)) break;
 
-            if (subscriptionCount[currentReferrer] > 0) {
+            if (subscriptionCount[currentReferrer] > 0 && cmsDirectCount[currentReferrer] >= LEVEL_DIRECTS[i]) {
                 uint256 leadershipReward = REF_REWARDS[i] * _amount;
                 leadershipRewards[currentReferrer] += leadershipReward;
             }
