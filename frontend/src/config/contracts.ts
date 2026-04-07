@@ -35,7 +35,7 @@ export const RANK_NAMES = [
   'Royal Diamond', 'Crown Diamond',
 ] as const;
 
-export const USDT_DECIMALS = 6;
+export const USDT_DECIMALS = 18; // MockUSDT uses 18 decimals
 export const KAIRO_DECIMALS = 18;
 export const BASIS_POINTS = 10000;
 export const SWAP_FEE_BPS = 300; // 3%

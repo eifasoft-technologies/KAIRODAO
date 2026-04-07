@@ -88,6 +88,7 @@ services:
       - NEXT_PUBLIC_ATOMIC_P2P=${ATOMIC_P2P_ADDRESS:-}
       - NEXT_PUBLIC_USDT=${USDT_ADDRESS:-}
       - NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${WALLETCONNECT_PROJECT_ID:-}
+      - NEXT_PUBLIC_SYSTEM_WALLET=${SYSTEM_WALLET:-}
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public

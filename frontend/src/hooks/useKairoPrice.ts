@@ -17,7 +17,7 @@ export function useKairoPrice() {
   });
 
   // getLivePrice returns (usdtBalance * 1e18) / kairoTotalSupply
-  // To convert to USD per KAIRO, divide by 10^USDT_DECIMALS (1e6)
+  // Both MockUSDT and KAIRO use 18 decimals, so price has 18-decimal precision
   // Use formatUnits for safe BigInt -> number conversion (avoids Number() precision loss)
   const price = priceData ? Number(formatUnits(priceData as bigint, USDT_DECIMALS)) : 0;
 
