@@ -159,50 +159,14 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
         }
 
         // Distribute referral rewards up 5 levels
-        // Eligibility conditions at each level:
-        //   1. Referrer must have an active CMS subscription (subscriptionCount > 0)
-        //   2. Referrer must have enough direct referrals to unlock the level
-        //   3. Referrer must have an active stake in StakingManager
-        //   4. Reward capped by remaining FIFO 3X cap space (excess forfeited)
+        // Eligibility: Referrer only needs an active CMS subscription (subscriptionCount > 0)
         address currentReferrer = referrerOf[msg.sender];
         for (uint256 i = 0; i < 5; i++) {
             if (currentReferrer == address(0)) break;
 
-            // Check eligibility: CMS subscription + enough directs + active stake + cap space
-            bool eligible = false;
             if (subscriptionCount[currentReferrer] > 0) {
-                uint256 directs = affiliateDistributor.directCount(currentReferrer);
-                uint256 unlockedLevels = directs > 5 ? 5 : directs; // cap at 5
-                if (i < unlockedLevels) {
-                    // Must have active stake
-                    if (stakingManager.getTotalActiveStakeValue(currentReferrer) > 0) {
-                        eligible = true;
-                    }
-                }
-            }
-
-            if (eligible) {
                 uint256 leadershipReward = REF_REWARDS[i] * _amount;
-
-                // Cap to remaining FIFO space; forfeit excess
-                if (livePrice > 0) {
-                    uint256 leadershipUsdValue = (leadershipReward * livePrice) / 1e18;
-                    uint256 remainingCap = stakingManager.getRemainingCap(currentReferrer);
-                    if (remainingCap == 0) {
-                        leadershipReward = 0; // Fully forfeited
-                    } else if (leadershipUsdValue > remainingCap) {
-                        // Scale down KAIRO reward proportionally
-                        leadershipReward = (remainingCap * 1e18) / livePrice;
-                    }
-                }
-
-                if (leadershipReward > 0) {
-                    leadershipRewards[currentReferrer] += leadershipReward;
-                    if (livePrice > 0) {
-                        uint256 cappedUsdValue = (leadershipReward * livePrice) / 1e18;
-                        stakingManager.addEarnings(currentReferrer, cappedUsdValue);
-                    }
-                }
+                leadershipRewards[currentReferrer] += leadershipReward;
             }
 
             // Walk up regardless of eligibility (reward skips ineligible, doesn't stop)

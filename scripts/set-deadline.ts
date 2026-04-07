@@ -5,7 +5,7 @@ async function main() {
     console.log("=== CMS Deadline Extension ===");
     console.log("Deployer:", deployer.address);
 
-    const CMS_ADDRESS = "0xFB9057fb12a5D27aba35AB9a50FB7604bdB0E2B0";
+    const CMS_ADDRESS = "0xfaD1A8AfaFb0fF44f7Bd23f33d88E8a2c4B9B39A";
 
     // Attach to the deployed CMS contract
     const cms = await ethers.getContractAt("CoreMembershipSubscription", CMS_ADDRESS);
