@@ -67,8 +67,16 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
     // Level 1: 0 directs, Level 2: 2, Level 3: 3, Level 4: 4, Level 5: 5
     uint256[5] public LEVEL_DIRECTS = [0, 2, 3, 4, 5];
 
+    // ============ Deadlines ============
+    // Subscription deadline: May 1, 2026 00:00:00 UTC
+    // If 10,000 subs reached earlier, subscribe() reverts via MAX_SUBS check.
+    uint256 public constant SUBSCRIBE_DEADLINE = 1777593600;
+
+    // Claim deadline: June 1, 2026 00:00:00 UTC
+    // After this, claiming is permanently disabled; unclaimed tokens are forfeit.
+    uint256 public constant CLAIM_DEADLINE = 1780272000;
+
     // ============ State Variables ============
-    uint256 public deadline;                                   // CMS subscription deadline
     uint256 public totalSubscriptions;                         // Global counter
     mapping(address => uint256) public subscriptionCount;      // Per-user sub count
     mapping(address => uint256) public loyaltyRewards;         // 5 KAIRO per sub (accumulated)
@@ -115,9 +123,6 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
         affiliateDistributor = IAffiliateDistributor(_affiliateDistributor);
         systemWallet = _systemWallet;
 
-        // May 1, 2026 UTC
-        deadline = block.timestamp + 12 hours;
-
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
@@ -129,7 +134,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
      * @param _referrer Referrer address (address(0) if none)
      */
     function subscribe(uint256 _amount, address _referrer) external nonReentrant whenNotPaused {
-        require(block.timestamp < deadline, "CMS: Subscription period ended");
+        require(block.timestamp < SUBSCRIBE_DEADLINE, "CMS: Subscription period ended");
         require(_amount > 0, "CMS: Amount must be > 0");
         require(totalSubscriptions + _amount <= MAX_SUBS, "CMS: Exceeds max subscriptions");
 
@@ -201,6 +206,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
      *      90% goes to user, 10% to system wallet.
      */
     function claimCMSRewards() external nonReentrant whenNotPaused {
+        require(block.timestamp <= CLAIM_DEADLINE, "CMS: Claim period ended");
         require(!hasClaimed[msg.sender], "CMS: Already claimed");
         require(subscriptionCount[msg.sender] > 0, "CMS: No subscriptions");
 
@@ -319,8 +325,16 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
      * @dev Check if CMS deadline has passed
      * @return True if deadline has passed
      */
-    function isDeadlinePassed() external view returns (bool) {
-        return block.timestamp >= deadline;
+    function isSubscriptionEnded() external view returns (bool) {
+        return block.timestamp >= SUBSCRIBE_DEADLINE || totalSubscriptions >= MAX_SUBS;
+    }
+
+    /**
+     * @dev Check if claim deadline has passed (June 1, 2026 UTC)
+     * @return True if claim deadline has passed
+     */
+    function isClaimDeadlinePassed() external view returns (bool) {
+        return block.timestamp > CLAIM_DEADLINE;
     }
 
     /**
@@ -330,6 +344,9 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
      * @return reason Reason string if not eligible
      */
     function canClaim(address _user) external view returns (bool eligible, string memory reason) {
+        if (block.timestamp > CLAIM_DEADLINE) {
+            return (false, "Claim period ended (June 1st)");
+        }
         if (hasClaimed[_user]) {
             return (false, "Already claimed");
         }
@@ -353,12 +370,7 @@ contract CoreMembershipSubscription is ReentrancyGuard, Pausable, AccessControl 
      * @dev Extend the CMS deadline (must be greater than current deadline)
      * @param _newDeadline New deadline timestamp
      */
-    function extendDeadline(uint256 _newDeadline) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_newDeadline > deadline, "CMS: New deadline must be after current");
-        uint256 oldDeadline = deadline;
-        deadline = _newDeadline;
-        emit DeadlineExtended(oldDeadline, _newDeadline);
-    }
+    // extendDeadline removed — deadlines are now immutable constants
 
     /**
      * @dev Set the system wallet address

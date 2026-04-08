@@ -254,6 +254,19 @@ export const CoreMembershipSubscriptionABI = [
   },
   {
     "inputs": [],
+    "name": "CLAIM_DEADLINE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "CMS_PRICE",
     "outputs": [
       {
@@ -273,6 +286,25 @@ export const CoreMembershipSubscriptionABI = [
         "internalType": "bytes32",
         "name": "",
         "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "LEVEL_DIRECTS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -313,6 +345,19 @@ export const CoreMembershipSubscriptionABI = [
   {
     "inputs": [],
     "name": "REWARD_PER_SUB",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "SUBSCRIBE_DEADLINE",
     "outputs": [
       {
         "internalType": "uint256",
@@ -368,8 +413,14 @@ export const CoreMembershipSubscriptionABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "deadline",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "cmsDirectCount",
     "outputs": [
       {
         "internalType": "uint256",
@@ -378,19 +429,6 @@ export const CoreMembershipSubscriptionABI = [
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_newDeadline",
-        "type": "uint256"
-      }
-    ],
-    "name": "extendDeadline",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -574,7 +612,20 @@ export const CoreMembershipSubscriptionABI = [
   },
   {
     "inputs": [],
-    "name": "isDeadlinePassed",
+    "name": "isClaimDeadlinePassed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "isSubscriptionEnded",
     "outputs": [
       {
         "internalType": "bool",

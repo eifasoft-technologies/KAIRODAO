@@ -421,6 +421,19 @@ export const StakingManagerABI = [
   },
   {
     "inputs": [],
+    "name": "MAX_STAKE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "MIN_HARVEST",
     "outputs": [
       {
@@ -656,6 +669,25 @@ export const StakingManagerABI = [
       {
         "internalType": "uint256",
         "name": "remaining",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getRemainingCap",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
         "type": "uint256"
       }
     ],
